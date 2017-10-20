@@ -1,6 +1,8 @@
-{
-  network.description = "toto";
-  example = { config, pkgs, lib, ... }:
+rec {
+  # network seems like a special attribute
+  # the others are logical machines
+  network.description = "Generate MPTCP pcap";
+  server = { config, pkgs, lib, ... }:
   {
     imports = [
         /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
@@ -34,4 +36,5 @@
 
     # TODO maybe add users
   };
+  client = server;
 }
