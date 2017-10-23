@@ -12,15 +12,17 @@ rec {
     # TODO run commands on boot
 
     # TODO use webfs instead ?
-    services.httpd.enable = true;
-    services.httpd.adminAddr = "alice@example.org";
-    services.httpd.documentRoot = "${pkgs.valgrind.doc}/share/doc/valgrind/html";
-    networking.firewall.allowedTCPPorts = [ 80 ];
+    # services.httpd.enable = true;
+    # services.httpd.adminAddr = "alice@example.org";
+    # services.httpd.documentRoot = "${pkgs.valgrind.doc}/share/doc/valgrind/html";
+    networking.firewall.enable = false;
+    # allowedTCPPorts = [ 80 ];
 
     environment.systemPackages = with pkgs; [
       iperf
       iperf2
       netperf
+      tshark
     ];
 
     # TODO here we can set a custom initramfs/kernel

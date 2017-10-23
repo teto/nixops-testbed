@@ -9,6 +9,7 @@ let
 in
 {
   # example = libvirtd;
-  client = libvirtd;
+  client = libvirtd // {
+  };
   server = libvirtd;
 }
