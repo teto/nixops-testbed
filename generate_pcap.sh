@@ -1,6 +1,6 @@
 #! /usr/bin/env sh
 
-set -x
+# set -x
 
 exit_trap ()
 {
@@ -8,21 +8,32 @@ exit_trap ()
 	test $rc -eq 0 || echo "*** error $rc"
 }
 trap exit_trap EXIT
+trap 'echo term or sign catched; exit 1' TERM INT
 
 # use scp to transfer the scripts
 TESTBED="$HOME/testbed"
 
+# TODO clean local files
+rm *.pcap
+# nixops ssh-for-each rm /tmp/*.pcap
+
+# upload scripts to /tmp
 nixops scp --to server $TESTBED/server.sh /tmp
 nixops scp --to client $TESTBED/client.sh /tmp
 # pkill server
 
 # need the & because the -f is not propagated to nixops ssh
-nixops ssh server -f "sh -x /tmp/server.sh" --logfile /server.log &
+# --logfile server.log
+echo "Starting server"
+nixops ssh server -f "sh -x /tmp/server.sh"
 sleep 2
-nixops ssh client "sh -x /tmp/client.sh" --logfile client.log
 
+echo "Starting client"
+nixops ssh client "sh /tmp/client.sh" --logfile client.log
 
-nixops ssh server pkill -9 tshark
+sleep 5
+
+nixops ssh-for-each pkill tshark
 # rapatriate the captures
 
 nixops scp --from server server.pcap server.pcap

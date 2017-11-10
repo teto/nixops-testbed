@@ -14,17 +14,23 @@ let
     networking.firewall.enable = false;
     # allowedTCPPorts = [ 80 ];
 
+    # TODO have it export TERM
     environment.systemPackages = with pkgs; [
+      at # to run in background
+      tmux   # to have it survive ssh closing, nohup can help too
       iperf
       iperf2
       netperf
       tshark
     ];
     programs.bash.enableCompletion = true;
+    programs.bash.shellInit = ''
+      export TERM=linux;
+      '';
 
     # won't work on nixos yet
-    # programs.wireshark.enable = true; # installs setuid
-    # programs.wireshark.package = pkgs.tshark; # which one
+    programs.wireshark.enable = true; # installs setuid
+    programs.wireshark.package = pkgs.tshark; # which one
 
     # TODO here we can set a custom initramfs/kernel
     # see my work on vagrant libvirt
