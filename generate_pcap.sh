@@ -25,15 +25,15 @@ nixops scp --to client $TESTBED/client.sh /tmp
 # need the & because the -f is not propagated to nixops ssh
 # --logfile server.log
 echo "Starting server"
-nixops ssh server -f "sh -x /tmp/server.sh"
+nixops ssh server -f "sh -x /tmp/server.sh 2>1 >stdout.txt"
 sleep 2
 
 echo "Starting client"
-nixops ssh client "sh /tmp/client.sh" --logfile client.log
+nixops ssh client "sh /tmp/client.sh " --logfile client.log
 
 sleep 5
 
-nixops ssh-for-each pkill tshark
+# nixops ssh-for-each pkill tshark
 # rapatriate the captures
 
 nixops scp --from server server.pcap server.pcap
