@@ -3,7 +3,12 @@ let
     imports = [
         /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
         /home/teto/dotfiles/nixpkgs/basetools.nix
+      # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
       ];
+
+    nixpkgs.overlays = [
+      (import /home/teto/dotfiles/config/nixpkgs/overlays/i3.nix)
+    ];
 
     # TODO run commands on boot
 
