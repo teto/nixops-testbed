@@ -1,7 +1,8 @@
 let
   tpl = { config, pkgs, lib, ... }:{
     imports = [
-        /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
+      # Not needed if we use the libvirt kernel interface
+        # /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
         /home/teto/dotfiles/nixpkgs/basetools.nix
       # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
       ];
@@ -39,14 +40,26 @@ let
 
     # TODO here we can set a custom initramfs/kernel
     # see my work on vagrant libvirt
-    deployment.libvirtd.extraDevicesXML = ''
-      <serial type='pty'>
+    deployment.libvirtd = {
+      extraDevicesXML = ''
+        <serial type='pty'>
         <target port='0'/>
-      </serial>
-      <console type='pty'>
+        </serial>
+        <console type='pty'>
         <target type='serial' port='0'/>
-      </console>
-    '';
+        </console>
+      '';
+      extraDomainXML = ''
+        <on_crash>preserve</on_crash>
+        '';
+      # cmdline = ""
+      # initrd = ""
+      # todo set it to my local vmimage
+      # kernel=/home/teto/mptcp/build_backup/vmlinux;
+      kernel=/tmp/vmlinux;
+      # initrd=/tmp/vmlinux;
+    };
+
 
     # TODO maybe add users
   };
