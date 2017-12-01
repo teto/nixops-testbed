@@ -40,6 +40,8 @@ let
 
     # TODO here we can set a custom initramfs/kernel
     # see my work on vagrant libvirt
+    # <log file="/var/log/libvirt/qemu/guestname-serial0.log" append="off"/>
+    # virsh + ttyconsole pour voir le numero
     deployment.libvirtd = {
       extraDevicesXML = ''
         <serial type='pty'>
@@ -51,12 +53,14 @@ let
       '';
       extraDomainXML = ''
         <on_crash>preserve</on_crash>
-        '';
-      # cmdline = ""
+      '';
+
+      # to see the botting message on the line
+      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0";
       # initrd = ""
       # todo set it to my local vmimage
-      # kernel=/home/teto/mptcp/build_backup/vmlinux;
-      kernel=/tmp/vmlinux;
+      kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
+      # kernel=/tmp/vmlinux;
       # initrd=/tmp/vmlinux;
     };
 
