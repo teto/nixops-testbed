@@ -1,5 +1,6 @@
 let
-  tpl = { config, pkgs, lib, ... }:{
+  tpl = { config, pkgs, lib, ... }:
+  {
     imports = [
       # Not needed if we use the libvirt kernel interface
         # /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
@@ -42,30 +43,31 @@ let
     # see my work on vagrant libvirt
     # <log file="/var/log/libvirt/qemu/guestname-serial0.log" append="off"/>
     # virsh + ttyconsole pour voir le numero
-    deployment.libvirtd = {
-      extraDevicesXML = ''
-        <serial type='pty'>
-        <target port='0'/>
-        </serial>
-        <console type='pty'>
-        <target type='serial' port='0'/>
-        </console>
-      '';
-      extraDomainXML = ''
-        <on_crash>preserve</on_crash>
-      '';
-
-      # to see the botting message on the line
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0";
-      # initrd = ""
-      # todo set it to my local vmimage
-      kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
-      # kernel=/tmp/vmlinux;
-      # initrd=/tmp/vmlinux;
+    # TODO maybe add users
+    users.extraUsers.teto = {
+      isNormalUser = true; # creates home/ sets default shell
+      uid = 1000;
+      extraGroups = [
+        "audio" # for pulseaudio 
+        "wheel" # for sudo
+        "networkmanager"
+        "libvirtd" # for nixops
+        "adbusers" # for android tools
+        "wireshark"
+        "plugdev" # for udiskie
+        # "kvm" # don't think that's needed
+      ];
+      # once can set initialHashedPassword too
+      initialPassword = "teto";
+      # shell = pkgs.zsh;
+      # TODO import it from desktopPkgs for instance ?
+      # packages = [
+      #   pkgs.termite pkgs.sxiv
+      # ];
     };
 
 
-    # TODO maybe add users
+
   };
 in
 rec {
