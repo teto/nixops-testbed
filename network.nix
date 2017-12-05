@@ -35,6 +35,12 @@ let
       export TERM=linux;
       '';
 
+    # services.openssh = {
+    #   permitRootLogin = "no";
+    #   passwordAuthentication = false;
+    #   # enable = false;
+    # };
+
     # won't work on nixos yet
     programs.wireshark.enable = true; # installs setuid
     programs.wireshark.package = pkgs.tshark; # which one
@@ -66,7 +72,8 @@ let
       # ];
     };
 
-
+    # prints everything superior to this number
+    boot.consoleLogLevel=1;
 
   };
 in
@@ -75,5 +82,5 @@ rec {
   # the others are logical machines
   network.description = "Generate MPTCP pcap";
   server = tpl ;
-  client = server;
+  # client = server;
 }
