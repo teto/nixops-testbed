@@ -1,6 +1,16 @@
 #! /usr/bin/env sh
 
 # set -x
+if [ -z "$NIXOPS_DEPLOYMENT" ]; then
+	if [ $# -lt 1 ]; then
+		echo "Set \$NIXOPS_DEPLOYMENT or pass the domain name"
+		exit 1
+	else
+		export NIXOPS_DEPLOYMENT="$1"
+	fi
+fi
+
+echo "Using deployement= $NIXOPS_DEPLOYMENT"
 
 exit_trap ()
 {
@@ -9,6 +19,8 @@ exit_trap ()
 }
 trap exit_trap EXIT
 trap 'echo term or sign catched; exit 1' TERM INT
+
+
 
 # use scp to transfer the scripts
 TESTBED="$HOME/testbed"

@@ -1,6 +1,19 @@
 let
   tpl = { config, pkgs, lib, ... }:
   {
+    # prints everything superior to this number
+    boot.consoleLogLevel=1;
+    boot.kernel.sysctl = {
+      "net.ipv4.tcp_timestamps" = 3;
+      # "net.ipv4.tcp_keepalive_time" = 60;
+      # "net.core.rmem_max" = 4194304;
+      # "net.core.wmem_max" = 1048576;
+    };
+    boot.kernelModules = [
+      # "kvm"  # for virtualisation
+      "tcpprobe"
+      ];
+
     imports = [
       # Not needed if we use the libvirt kernel interface
         # /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
@@ -72,15 +85,18 @@ let
       # ];
     };
 
-    # prints everything superior to this number
-    boot.consoleLogLevel=1;
-
   };
 in
 rec {
   # network seems like a special attribute
   # the others are logical machines
   network.description = "Generate MPTCP pcap";
+  # network.enableRollback = false; 
+
+  # to enable for all machines
+  # defaults = {
+  #   imports = [ ./common.nix ];
+  # };
   server = tpl ;
-  # client = server;
+  client = server;
 }
