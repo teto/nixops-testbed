@@ -10,7 +10,7 @@ in
 {
   imports =
     [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
+      /etc/nixos/hardware-configuration.nix
     ];
 
   # Use the GRUB 2 boot loader.
@@ -41,7 +41,9 @@ in
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
    environment.systemPackages = with pkgs; [
-     wget vim
+     wget
+     termite # for the TERMINFO ?
+     vim
         neovim
         weechat
         tmux
@@ -90,7 +92,7 @@ in
       group="libvirtd"
       '';
   };
-  systemd.services.libvirtd.restartIfChanged = lib.mkForce true;
+  # systemd.services.libvirtd.restartIfChanged = lib.mkForce true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.extraUsers.teto = {
