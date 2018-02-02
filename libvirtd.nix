@@ -18,8 +18,8 @@ let
       # some of it could be passed as boot.kernelParams = [ "console=ttyS0,115200" ];
       # don't need the ip=dhcp anymore
       # boot.trace to look at startup commands
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 boot.consoleLogLevel=1 ";
-      kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
+      # cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 boot.consoleLogLevel=1 ";
+      # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
   };
 
   # lib.recursiveUpdate { } {deployment.libvirtd}
@@ -44,6 +44,6 @@ let
 in
 {
   # example = libvirtd;
-  # server = libvirtd-remote;
+  server = libvirtd-remote;
   client = libvirtd-local;
 }

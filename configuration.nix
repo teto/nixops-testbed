@@ -3,9 +3,11 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 let
-        gitolitePublicKey =  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDmt8RlXKAn7zryenWl8e8RDLZ+WLzIsdqwDMbvynF/Eg3zraxWpm80cXlIrGAayHf8eTjmWXoDnWBuS3MHjv9nTWHliJVyHC5/aImrGflkGpWWpBvxg79bIz06QusqBx4Vfq6NKn/GS6L8KevhtMToLmEOyRuB3Gs1FWsHb/EbqKp5hzDYS3yVMjVkF+cubQiK/DEvcio/G/vSDrBcPE8kUZcf3ibsBruUa3tCh4RTmaLnoIbkOX/ColTWPIOhMlnYeOOzZ22ln6cgBgarjU/DEpb4iu0qSjTArNV58mUpqzEUU0sTq2sunK0hdEDkxWw/3qpv6MI276AQ4QrY2wTN";
+  gitolitePublicKey =  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDmt8RlXKAn7zryenWl8e8RDLZ+WLzIsdqwDMbvynF/Eg3zraxWpm80cXlIrGAayHf8eTjmWXoDnWBuS3MHjv9nTWHliJVyHC5/aImrGflkGpWWpBvxg79bIz06QusqBx4Vfq6NKn/GS6L8KevhtMToLmEOyRuB3Gs1FWsHb/EbqKp5hzDYS3yVMjVkF+cubQiK/DEvcio/G/vSDrBcPE8kUZcf3ibsBruUa3tCh4RTmaLnoIbkOX/ColTWPIOhMlnYeOOzZ22ln6cgBgarjU/DEpb4iu0qSjTArNV58mUpqzEUU0sTq2sunK0hdEDkxWw/3qpv6MI276AQ4QrY2wTN";
+
+  userNixpkgs = /home/teto/nixpkgs;
 in
 {
   imports =
@@ -22,7 +24,7 @@ in
   # Define on which hard drive you want to install Grub.
   boot.loader.grub.device = "/dev/sda"; # or "nodev" for efi only
 
-  networking.hostName = "nixos_git"; # Define your hostname.
+  networking.hostName = "matt_vm"; # Define your hostname.
   networking.defaultGateway = "202.214.86.1";
   networking.nameservers = ["210.130.207.46"];
   networking.interfaces.ens3.ip4 = [ { address = "202.214.86.52"; prefixLength = 25; }];
@@ -42,12 +44,14 @@ in
   # $ nix-env -qaP | grep wget
    environment.systemPackages = with pkgs; [
      wget
-     termite # for the TERMINFO ?
+     fd
+     termite # for the TERMINFO
      vim
-        neovim
-        weechat
-        tmux
-        iperf
+     neovim
+     weechat
+     tmux
+     iperf
+     nixUnstable
    ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -92,6 +96,12 @@ in
       group="libvirtd"
       '';
   };
+
+  # Next we have to make sure our user has access to create images by executing:
+  # $ sudo mkdir /var/lib/libvirt/images
+  # $ sudo chgrp libvirtd /var/lib/libvirt/images
+  # $ sudo chmod g+w /var/lib/libvirt/images
+
   # systemd.services.libvirtd.restartIfChanged = lib.mkForce true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
@@ -113,8 +123,10 @@ in
 
   # enable gitolite
   services.gitolite = {
-        enable = true;
-        adminPubkey = gitolitePublicKey ;
+    enable = true;
+    adminPubkey = gitolitePublicKey ;
+    # by default /var/lib/gitolite
+    # dataDir = /home/teto/gitolite;
   };
 
   # This value determines the NixOS release with which your system is to be
@@ -122,6 +134,27 @@ in
   # servers. You should change this only after NixOS release notes say you
   # should.
   system.stateVersion = "17.09"; # Did you read the comment?
+  nix = {
+    # buildCores=4;
+    nixPath = [
+      "nixos-config=/home/teto/testbed/configuration.nix"
+      "/nix/var/nix/profiles/per-user/root/channels"
+    ]
+    ++ lib.optionals (builtins.pathExists userNixpkgs)  [ "nixpkgs=${builtins.toString userNixpkgs}" ]
+    ;
+    #  to keep build-time dependencies around => rebuild while being offline
+    # build-use-sandbox = true
+    extraOptions = ''
+      # careful will prevent from fetching local git !
+      # build-use-sandbox = true
+      gc-keep-outputs = true
+      gc-keep-derivations = true
+    '';
 
+    # either use --option extra-binary-caches http://hydra.nixos.org/
+    # nix.binaryCaches = [ http://hydra.nixos.org/ ];
+    # handy to hack/fix around
+    readOnlyStore = false;
+  };
 }
 
