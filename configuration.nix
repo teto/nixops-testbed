@@ -5,8 +5,6 @@
 
 { config, pkgs, lib, ... }:
 let
-  gitolitePublicKey =  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDmt8RlXKAn7zryenWl8e8RDLZ+WLzIsdqwDMbvynF/Eg3zraxWpm80cXlIrGAayHf8eTjmWXoDnWBuS3MHjv9nTWHliJVyHC5/aImrGflkGpWWpBvxg79bIz06QusqBx4Vfq6NKn/GS6L8KevhtMToLmEOyRuB3Gs1FWsHb/EbqKp5hzDYS3yVMjVkF+cubQiK/DEvcio/G/vSDrBcPE8kUZcf3ibsBruUa3tCh4RTmaLnoIbkOX/ColTWPIOhMlnYeOOzZ22ln6cgBgarjU/DEpb4iu0qSjTArNV58mUpqzEUU0sTq2sunK0hdEDkxWw/3qpv6MI276AQ4QrY2wTN";
-
   userNixpkgs = /home/teto/nixpkgs;
 in
 {
@@ -27,7 +25,6 @@ in
   networking.hostName = "matt_vm"; # Define your hostname.
   networking.defaultGateway = "202.214.86.1";
   networking.nameservers = ["210.130.207.46"];
-  networking.interfaces.ens3.ip4 = [ { address = "202.214.86.52"; prefixLength = 25; }];
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
   # Select internationalisation properties.
@@ -104,14 +101,6 @@ in
 
   # systemd.services.libvirtd.restartIfChanged = lib.mkForce true;
 
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.extraUsers.teto = {
-    isNormalUser = true;
-    description = "matt";
-    extraGroups = [ "wheel" "networkmanager" "libvirtd"];
-    openssh.authorizedKeys.keys = [ gitolitePublicKey ];
-    uid = 1000;
-  };
 
   # Enable the OpenSSH daemon.
   services.openssh = {
@@ -119,14 +108,6 @@ in
           permitRootLogin = "no";
         passwordAuthentication = false;
         challengeResponseAuthentication = false;
-  };
-
-  # enable gitolite
-  services.gitolite = {
-    enable = true;
-    adminPubkey = gitolitePublicKey ;
-    # by default /var/lib/gitolite
-    # dataDir = /home/teto/gitolite;
   };
 
   # This value determines the NixOS release with which your system is to be

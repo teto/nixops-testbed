@@ -41,6 +41,12 @@ let
     # test improvements
     # deployment.libvirtd.kernel = "otot";
   };
+
+  nixops-remote = { config, pkgs, ... }:
+  {
+    # todo change
+    deployment.targetHost = "1.2.3.4";
+  };
 in
 {
   # example = libvirtd;
