@@ -1,0 +1,1 @@
+/home/teto/dotfiles/nixpkgs/secrets.nix
