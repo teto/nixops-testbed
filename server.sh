@@ -10,6 +10,7 @@ pkill -9 tshark
 pkill -9 iperf
 
 echo "starting tshark"
+# add -i any to capture from several interfaces
 nohup tshark -n -w server.pcap -f "tcp port 5201" 2>1 &
 sleep 3
 

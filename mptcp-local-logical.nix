@@ -5,7 +5,7 @@ let
 
     imports = [
       # Not needed if we use the libvirt kernel interface
-        # /home/teto/dotfiles/nixpkgs/mptcp-kernel.nix
+        /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common.nix
         /home/teto/dotfiles/nixpkgs/wireshark.nix
       ];
@@ -54,5 +54,5 @@ rec {
   # <custom/>
   # server = import /home/teto/dotfiles/nixpkgs/config-iij-mptcp.nix;
   server = tpl;
-  client = server;
+  client = tpl;
 }

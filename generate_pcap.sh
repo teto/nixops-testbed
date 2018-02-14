@@ -48,8 +48,10 @@ sleep 5
 # nixops ssh-for-each pkill tshark
 # rapatriate the captures
 
+nixops scp --from server /proc/kmsg server_kmsg.log
 nixops scp --from server server.pcap server.pcap
 nixops scp --from server server.log server.log
+nixops scp --from client /proc/kmsg client.log
 nixops scp --from client client.pcap client.pcap
 nixops scp --from client client.log client.log
 # $TESTBED/server.sh
