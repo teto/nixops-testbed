@@ -23,3 +23,4 @@ nohup iperf -s -D  -d --logfile server.log
 # handle one client connection then exit
 # TODO use -J / --logfile /-d
 
+dmesg > kmsg.log

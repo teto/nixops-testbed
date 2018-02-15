@@ -23,3 +23,4 @@ iperf -d -c server -n 100k --connect-timeout 10000 -J --logfile client.log
 sleep 5
 pkill tshark
 
+dmesg > kmsg.log
