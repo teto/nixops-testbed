@@ -16,7 +16,7 @@ sleep 5
 
 # run 5sec session
 # -t 5 = lasts 5sec
-iperf -d -c server -n 100k --connect-timeout 10000 -J --logfile client.log
+iperf -d -c server -n 1k --connect-timeout 10000 -J --logfile client.log
 
 
 # or maybe just don't kill it

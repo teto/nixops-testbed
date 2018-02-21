@@ -46,7 +46,6 @@ rec {
   # the others are logical machines
   network = {
     description = "local MPTCP";
-    # defaults = 
     enableRollback = false;
   };
 

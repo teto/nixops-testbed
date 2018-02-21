@@ -16,11 +16,16 @@ sleep 3
 
 # --one-off
 # -s accepts only one connection at a time
+# -D daemon
 # --one-off
+# -d/--debug
 nohup iperf -s -D  -d --logfile server.log
+
+# wait is a bash builtins
+# $! is the pid of the last program launched (aka iperf here)
+# wait $!
 # --logfile server.log
 
 # handle one client connection then exit
 # TODO use -J / --logfile /-d
 
-dmesg > kmsg.log

@@ -25,8 +25,8 @@ trap 'echo term or sign catched; exit 1' TERM INT
 # use scp to transfer the scripts
 TESTBED="$HOME/testbed"
 
-# TODO clean local files
-rm *.pcap
+# clean local files so that it is easier to catch errors
+rm *.pcap *.log
 # nixops ssh-for-each rm /tmp/*.pcap
 
 # upload scripts to /tmp
@@ -37,13 +37,15 @@ nixops scp --to client $TESTBED/client.sh /tmp
 # need the & because the -f is not propagated to nixops ssh
 # --logfile server.log
 echo "Starting server"
-nixops ssh server -f "sh -x /tmp/server.sh 2>1 >stdout.txt"
+nixops ssh server "sh -x /tmp/server.sh 2>1 >stdout.txt"
 sleep 2
 
 echo "Starting client"
 nixops ssh client "sh /tmp/client.sh " --logfile client.log
 
-sleep 5
+nixops ssh server "dmesg > kmsg.log"
+
+# sleep 5
 
 # nixops ssh-for-each pkill tshark
 # rapatriate the captures
