@@ -1,0 +1,22 @@
+	{
+	"gateway":"192.168.0.1",
+	"gateway6":"2001:db8:0:f101::1",
+	"debug":"1",
+	"singlecpu":"1",
+	"sysctl":"net.ipv4.tcp_wmem=4096 87380 2147483647",
+	"boot_cmdline":"ip=dhcp",
+	"interfaces":[
+			{
+					"mac":"12:34:56:78:9a:bc",
+					"type":"vnet0",
+					"param":"",
+					"ip":"192.168.0.2",
+					"masklen":"24",
+					"ifgateway":"192.168.0.1",
+					"ipv6":"2001:db8:0:f101::2",
+					"masklen6":"64",
+					"ifgateway6":"2001:db8:0:f101::1",
+					"offload":"0xc803"
+			}
+	]
+	}

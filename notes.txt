@@ -1,0 +1,4 @@
+tshark -V -r file_to_convert.pcap
+
+ip tuntap
+sudo lkl-hijack.sh ping 127.0.0.1

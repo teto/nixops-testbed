@@ -21,6 +21,9 @@ sleep 3
 # -d/--debug
 nohup iperf -s -D  -d --logfile server.log
 
+# it is daemonized automatically
+# nohup netserver -4 -d
+
 # wait is a bash builtins
 # $! is the pid of the last program launched (aka iperf here)
 # wait $!
