@@ -1,6 +1,8 @@
 let
   libvirtd-base = {
       headless = true;
+      # <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+      domainType = "kvm\" xmlns:qemu=\"http://libvirt.org/schemas/domain/qemu/1.0";
       extraDevicesXML = ''
         <serial type='pty'>
         <target port='0'/>
