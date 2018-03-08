@@ -4,14 +4,20 @@
 # set print thread-events off
 
 TAPDEV=lkl_tap
+
+# brctl add
+
+# sudo brctl addbr lkl
+# sudo brctl addif lkl lkl_tap
+
 # ip tuntap show |grep $TAPDEV
 # if [ $? -ne 0 ]; then
 
-	ip tuntap del dev $TAPDEV mode tap || true
-	ip tuntap add dev $TAPDEV mode tap user $USER
-	ip link set dev $TAPDEV
+	# ip tuntap del dev $TAPDEV mode tap || true
+	# ip tuntap add dev $TAPDEV mode tap user $USER
+	# ip link set dev $TAPDEV
 	# .11 seems unused
-	ip addr add dev $TAPDEV 192.168.0.11/24
+	# ip addr add dev $TAPDEV 192.168.0.11/24
 # fi
 
 # curl --resolve multipath-tcp.org:80:130.104.230.45 http://multipath-tcp.org
