@@ -23,6 +23,10 @@ let
     # services.httpd.documentRoot = "${pkgs.valgrind.doc}/share/doc/valgrind/html";
     networking.firewall.enable = false;
     # allowedTCPPorts = [ 80 ];
+    
+    boot.postBootCommands = ''
+      ln -s /dev/sda1 /dev/root
+    '';
 
     environment.systemPackages = with pkgs; [
       at # to run in background
