@@ -5,6 +5,12 @@
 
 TAPDEV=lkl_tap
 
+# there is also a utility named "bridge link"
+
+# http://blog.elastocloud.org/2015/07/qemukvm-bridged-network-with-tap.html
+sudo ip link add br0 type bridge
+
+# don't necessarily need brctl
 # brctl add
 
 # sudo brctl addbr lkl
