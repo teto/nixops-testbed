@@ -4,7 +4,6 @@ let
       # <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
       # domainType = "kvm\" xmlns:qemu=\"http://libvirt.org/schemas/domain/qemu/1.0";
       domainType = "kvm";
-      template = "./domain2.xml";
       extraDevicesXML = ''
         <serial type='pty'>
         <target port='0'/>
@@ -46,11 +45,39 @@ let
     # test improvements
     # deployment.libvirtd.kernel = "otot";
   };
-
+  debug_domain = ''<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+	<qemu:commandline>
+		<qemu:arg value='-s'/>
+	</qemu:commandline>
+  <name>{name}</name>
+  <memory unit="MiB">{memory_size}</memory>
+  <vcpu>{vcpu}</vcpu>
+  {os}
+  <devices>
+	  <emulator>{emulator}</emulator>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="{diskPath}"/>
+      <target dev="hda"/>
+    </disk>
+	{interfaces}
+    <input type="keyboard" bus="usb"/>
+    <input type="mouse" bus="usb"/>
+	{extra_devices}
+  </devices>
+  {extra_domain}
+</domain>'';
 in
 {
   # example = libvirtd;
   # server = libvirtd-remote;
   server = libvirtd-local;
-  client = libvirtd-local;
+
+  # we configure the debug domain just for one VM since -s for the 2 generates an error
+  # in the port
+  # client = libvirtd-local;
+  client = { config, pkgs, lib, ...} @ args:
+  # lib.traceShowVal 
+  lib.recursiveUpdate (libvirtd-local args) { deployment.libvirtd.template = debug_domain; };
+
 }
