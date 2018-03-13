@@ -2,3 +2,20 @@ tshark -V -r file_to_convert.pcap
 
 ip tuntap
 sudo lkl-hijack.sh ping 127.0.0.1
+
+
+
+Driver has suspect GRO implementation, TCP performance may be compromised.
+make htmldocs
+
+gdb vmlinux
+(gdb) target remote localhost:1234
+(gdb) continue
+(gdb) apropos lx
+
+
+debugfs /sys/kernel/debug debugfs rw,relatime 0 0
+
+
+/proc/kallsyms and /sys/kernel/debug/kernel_page_table
+

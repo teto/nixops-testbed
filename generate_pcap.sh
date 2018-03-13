@@ -26,16 +26,17 @@ trap 'echo term or sign catched; exit 1' TERM INT
 TESTBED="$HOME/testbed"
 
 # clean local files so that it is easier to catch errors
-rm *.pcap *.log
+rm ./*.pcap ./*.log
 # nixops ssh-for-each rm /tmp/*.pcap
 
 # upload scripts to /tmp
-nixops scp --to server $TESTBED/server.sh /tmp
-nixops scp --to client $TESTBED/client.sh /tmp
+nixops scp --to server "$TESTBED/server.sh" /tmp
+nixops scp --to client "$TESTBED/client.sh" /tmp
 # pkill server
 
 # need the & because the -f is not propagated to nixops ssh
 # --logfile server.log
+# need to redirect stderr because to let ssh disconnect when with -f ?
 echo "Starting server"
 nixops ssh server "sh -x /tmp/server.sh 2>1 >stdout.txt"
 sleep 2
@@ -43,7 +44,9 @@ sleep 2
 echo "Starting client"
 nixops ssh client "sh /tmp/client.sh " --logfile client.log
 
+echo "saving data from server"
 nixops ssh server "dmesg > kmsg.log"
+echo "data saved"
 
 # sleep 5
 

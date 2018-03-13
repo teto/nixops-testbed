@@ -19,6 +19,7 @@ sleep 3
 # -D daemon
 # --one-off
 # -d/--debug
+# --one-off
 nohup iperf -s -D  -d --logfile server.log
 
 # it is daemonized automatically
