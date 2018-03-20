@@ -46,6 +46,8 @@ let
     # test improvements
     # deployment.libvirtd.kernel = "otot";
   };
+
+  # TODO look at https://libvirt.org/formatdomain.html coredump-destroy
   debug_domain = ''<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
 	<qemu:commandline>
 		<qemu:arg value='-s'/>
@@ -66,6 +68,7 @@ let
     <input type="mouse" bus="usb"/>
 	{extra_devices}
   </devices>
+    <on_crash>coredump-destroy</on_crash>
   {extra_domain}
 </domain>'';
 in

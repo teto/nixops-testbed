@@ -8,6 +8,7 @@ let
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common.nix
         /home/teto/dotfiles/nixpkgs/wireshark.nix
+        /home/teto/dotfiles/nixpkgs/modules/qemu-guest-agent.nix
       ];
 
     # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
@@ -30,6 +31,7 @@ let
 
     environment.systemPackages = with pkgs; [
       at # to run in background
+      ethtool # to check for segmentation offload
       tmux   # to have it survive ssh closing, nohup can help too
       iperf
       iperf2
