@@ -82,6 +82,13 @@ in
   # client = libvirtd-local;
   client = { config, pkgs, lib, ...} @ args:
   # lib.traceShowVal 
-  lib.recursiveUpdate (libvirtd-local args) { deployment.libvirtd.template = debug_domain; };
+  lib.recursiveUpdate (libvirtd-local args) { 
+    deployment.libvirtd.template = debug_domain; 
+    # create it with `virsh -c qemu:///system`
+    # $ net-define --file /home/teto/testbed/libvirtd-network.xml
+    # net-start mptcpB
+    # net-autostart mptcpB
+    deployment.libvirtd.networks = [ "default" "mptcpB" ]; 
+  };
 
 }

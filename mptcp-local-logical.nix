@@ -12,6 +12,7 @@ let
         /home/teto/dotfiles/nixpkgs/common.nix
         /home/teto/dotfiles/nixpkgs/wireshark.nix
         /home/teto/dotfiles/nixpkgs/modules/qemu-guest-agent.nix
+        /home/teto/dotfiles/nixpkgs/network-manager.nix
       ];
 
     # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
@@ -55,10 +56,10 @@ let
   client_tpl = {config, pkgs, ... } @ args:
       (tpl args) // {
     # need to be multihomed
-    networking.interfaces = {
-      eth0 = { name = "eth0"; useDHCP=true; };
-      # eth1 = { name = "eth1"; useDHCP=true; };
-    };
+    # networking.interfaces = {
+    #   eth0 = { name = "eth0"; useDHCP=true; };
+    #   # eth1 = { name = "eth1"; useDHCP=true; };
+    # };
 
     networking.firewall.enable = false;
     # to execute at the end of a setupped network
