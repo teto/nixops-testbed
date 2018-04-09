@@ -1,6 +1,9 @@
+# after deployement run
+# nixops ssh-for-each "ln -s /dev/sda1 /dev/root"
+{ multihomed ? false , ... }:
 let
-  tpl = { config, pkgs, lib, ... }:
-  {
+  tpl = { config, pkgs, lib,  ... }:
+  ({
     # prints everything superior to this number
 
     imports = [
@@ -28,7 +31,7 @@ let
     boot.postBootCommands = ''
       ln -s /dev/sda1 /dev/root
     '';
-
+    
     environment.systemPackages = with pkgs; [
       at # to run in background
       ethtool # to check for segmentation offload
@@ -45,6 +48,21 @@ let
     # virsh + ttyconsole pour voir le numero
     # TODO maybe add users
 
+  } 
+  );
+
+
+  client_tpl = {config, pkgs, ... } @ args:
+      (tpl args) // {
+    # need to be multihomed
+    networking.interfaces = {
+      eth0 = { name = "eth0"; useDHCP=true; };
+      # eth1 = { name = "eth1"; useDHCP=true; };
+    };
+
+    networking.firewall.enable = false;
+    # to execute at the end of a setupped network
+    # networking.localCommands=
   };
 in
 rec {
@@ -59,5 +77,5 @@ rec {
   # <custom/>
   # server = import /home/teto/dotfiles/nixpkgs/config-iij-mptcp.nix;
   server = tpl;
-  client = tpl;
+  client = client_tpl;
 }
