@@ -9,10 +9,12 @@ let
     imports = [
       # Not needed if we use the libvirt kernel interface
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
-        /home/teto/dotfiles/nixpkgs/common.nix
-        /home/teto/dotfiles/nixpkgs/wireshark.nix
-        /home/teto/dotfiles/nixpkgs/modules/qemu-guest-agent.nix
-        /home/teto/dotfiles/nixpkgs/network-manager.nix
+        /home/teto/dotfiles/nixpkgs/common-all.nix
+        /home/teto/dotfiles/nixpkgs/common-server.nix
+        /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
+        # /home/teto/dotfiles/nixpkgs/modules/qemu-guest-agent.nix
+        # for now don't use it
+        # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
     # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
@@ -78,5 +80,5 @@ rec {
   # <custom/>
   # server = import /home/teto/dotfiles/nixpkgs/config-iij-mptcp.nix;
   server = tpl;
-  client = client_tpl;
+  # client = client_tpl;
 }

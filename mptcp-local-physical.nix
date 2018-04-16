@@ -1,6 +1,8 @@
 let
   libvirtd-base = {
       headless = true;
+
+      baseImageSize = 4; # GB
       # <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
       # domainType = "kvm\" xmlns:qemu=\"http://libvirt.org/schemas/domain/qemu/1.0";
       domainType = "kvm";
@@ -17,14 +19,21 @@ let
         <on_crash>preserve</on_crash>
       '';
 
+
+# virsh pool-create-as default dir --target /var/lib/libvirt/images
+# virsh pool-dumpxml default > pool.xml
+# virsh pool-define pool.xml 
+# virsh pool-autostart default
+
       # to see the botting message on the line
       # some of it could be passed as boot.kernelParams = [ "console=ttyS0,115200" ];
       # don't need the ip=dhcp anymore
       # boot.trace to look at startup commands
       # nokaslr needed for qemu debugging
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 boot.consoleLogLevel=1 nokaslr";
-      # x86_64 is a symlink towards x86
-      kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
+      # cmdline=" earlycon=ttyS0 console=ttyS0 boot.debug=1";
+      # cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 boot.consoleLogLevel=1 nokaslr";
+      # # x86_64 is a symlink towards x86
+      # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
   };
 
   # lib.recursiveUpdate { } {deployment.libvirtd}
@@ -80,15 +89,26 @@ in
   # we configure the debug domain just for one VM since -s for the 2 generates an error
   # in the port
   # client = libvirtd-local;
-  client = { config, pkgs, lib, ...} @ args:
-  # lib.traceShowVal 
-  lib.recursiveUpdate (libvirtd-local args) { 
-    deployment.libvirtd.template = debug_domain; 
-    # create it with `virsh -c qemu:///system`
-    # $ net-define --file /home/teto/testbed/libvirtd-network.xml
-    # net-start mptcpB
-    # net-autostart mptcpB
-    deployment.libvirtd.networks = [ "default" "mptcpB" ]; 
-  };
+  # client = { config, pkgs, lib, ...} @ args:
+  # # lib.traceShowVal 
+  # lib.recursiveUpdate (libvirtd-local args) { 
+  #   deployment.libvirtd.template = debug_domain; 
+  #   # create it with `virsh -c qemu:///system`
+  #   # $ net-define --file /home/teto/testbed/templates/libvirtd-network.xml
+  #   # net-start mptcpB
+  #   # net-autostart mptcpB
+  #   # this is the versions working with master 
+  #   # deployment.libvirtd.networks = [ "default" "mptcpB" ]; 
+
+  #   # this is the versions https://github.com/NixOS/nixops/pull/922
+  #   deployment.libvirtd.networks = [ 
+  #     # if any problem with default network, it can be recreated with
+  #     # doc says virsh net-define /usr/share/libvirt/networks/default.xml
+  #     # but on nixos it is 
+  #     # net-define ${libvirt}var/lib/libvirt/qemu/networks/default.xml
+  #     { source = "default"; type= "virtual"; }
+  #     # { source="mptcpB"; type="bridge"; }
+  #   ]; 
+  # };
 
 }
