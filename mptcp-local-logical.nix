@@ -8,7 +8,7 @@ let
 
     imports = [
       # Not needed if we use the libvirt kernel interface
-        /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
+        # /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common-all.nix
         /home/teto/dotfiles/nixpkgs/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
@@ -16,6 +16,8 @@ let
         # for now don't use it
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
+
+    boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
     # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
     # nixpkgs.overlays = [
@@ -31,9 +33,9 @@ let
     networking.firewall.enable = false;
     # allowedTCPPorts = [ 80 ];
     
-    boot.postBootCommands = ''
-      ln -s /dev/sda1 /dev/root
-    '';
+    # boot.postBootCommands = ''
+    #   ln -s /dev/sda1 /dev/root
+    # '';
     
     environment.systemPackages = with pkgs; [
       at # to run in background

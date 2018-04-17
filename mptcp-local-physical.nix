@@ -26,7 +26,7 @@ let
 # virsh pool-autostart default
 
       # to see the botting message on the line
-      # some of it could be passed as boot.kernelParams = [ "console=ttyS0,115200" ];
+      # some of it could be passed as 
       # don't need the ip=dhcp anymore
       # boot.trace to look at startup commands
       # nokaslr needed for qemu debugging
