@@ -20,10 +20,11 @@ let
       '';
 
 
+      # CAREFUL ADD -c qemu:///system
 # virsh pool-create-as default dir --target /var/lib/libvirt/images
 # virsh pool-dumpxml default > pool.xml
-# virsh pool-define pool.xml 
-# virsh pool-autostart default
+# virsh -c qemu:///system pool-define pool.xml 
+# virsh -c qemu:///system pool-autostart default
 
       # to see the botting message on the line
       # some of it could be passed as 

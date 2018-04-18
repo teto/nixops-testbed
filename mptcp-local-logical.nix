@@ -8,11 +8,10 @@ let
 
     imports = [
       # Not needed if we use the libvirt kernel interface
-        # /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
+        /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common-all.nix
         /home/teto/dotfiles/nixpkgs/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
-        # /home/teto/dotfiles/nixpkgs/modules/qemu-guest-agent.nix
         # for now don't use it
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
@@ -31,12 +30,30 @@ let
     # services.httpd.adminAddr = "alice@example.org";
     # services.httpd.documentRoot = "${pkgs.valgrind.doc}/share/doc/valgrind/html";
     networking.firewall.enable = false;
+
+    # just trying
+    networking.dnsExtensionMechanism = false;
+    networking.dnsSingleRequest = false;
+
     # allowedTCPPorts = [ 80 ];
-    
+    # networking.networkmanager = {
+    #   enable=true;
+    #   # one of "dhclient", "dhcpcd", "internal"
+    #   dhcp="dhcpcd";
+    #   # networking.networkmanager.useDnsmasq
+    # #   enableStrongSwan = true;
+    # #   # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
+    # #   logLevel="DEBUG";
+    # #   wifi.scanRandMacAddress = true;
+    # };
+
+    # contradicts networkmanager
+    # networking.useDHCP = true;
+
     # boot.postBootCommands = ''
     #   ln -s /dev/sda1 /dev/root
     # '';
-    
+
     environment.systemPackages = with pkgs; [
       at # to run in background
       ethtool # to check for segmentation offload
