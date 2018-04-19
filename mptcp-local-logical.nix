@@ -74,8 +74,8 @@ let
   );
 
 
-  client_tpl = {config, pkgs, ... } @ args:
-  (tpl args);
+  # client_tpl = {config, pkgs, ... } @ args:
+  # (tpl args);
   # // {
     # need to be multihomed
     # networking.interfaces = {
@@ -100,5 +100,5 @@ rec {
   # <custom/>
   # server = import /home/teto/dotfiles/nixpkgs/config-iij-mptcp.nix;
   server = tpl;
-  # client = client_tpl;
+  client = tpl;
 }
