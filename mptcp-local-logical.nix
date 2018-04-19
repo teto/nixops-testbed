@@ -7,7 +7,7 @@ let
     # prints everything superior to this number
 
     imports = [
-      # Not needed if we use the libvirt kernel interface
+      #  Not needed if we use the libvirt kernel interface
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common-all.nix
         /home/teto/dotfiles/nixpkgs/common-server.nix
@@ -29,15 +29,15 @@ let
     # services.httpd.enable = true;
     # services.httpd.adminAddr = "alice@example.org";
     # services.httpd.documentRoot = "${pkgs.valgrind.doc}/share/doc/valgrind/html";
-    networking.firewall.enable = false;
+    # networking.firewall.enable = false;
 
     # just trying
     networking.dnsExtensionMechanism = false;
     networking.dnsSingleRequest = false;
 
     # allowedTCPPorts = [ 80 ];
-    # networking.networkmanager = {
-    #   enable=true;
+    networking.networkmanager = {
+      enable=true;
     #   # one of "dhclient", "dhcpcd", "internal"
     #   dhcp="dhcpcd";
     #   # networking.networkmanager.useDnsmasq
@@ -45,7 +45,7 @@ let
     # #   # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
     # #   logLevel="DEBUG";
     # #   wifi.scanRandMacAddress = true;
-    # };
+    };
 
     # contradicts networkmanager
     # networking.useDHCP = true;
@@ -59,9 +59,9 @@ let
       ethtool # to check for segmentation offload
       tmux   # to have it survive ssh closing, nohup can help too
       iperf
-      iperf2
+      # iperf2
       netperf
-      tshark
+      # tshark
     ];
 
     # TODO here we can set a custom initramfs/kernel
@@ -75,17 +75,18 @@ let
 
 
   client_tpl = {config, pkgs, ... } @ args:
-      (tpl args) // {
+  (tpl args);
+  # // {
     # need to be multihomed
     # networking.interfaces = {
     #   eth0 = { name = "eth0"; useDHCP=true; };
     #   # eth1 = { name = "eth1"; useDHCP=true; };
     # };
 
-    networking.firewall.enable = false;
-    # to execute at the end of a setupped network
-    # networking.localCommands=
-  };
+    # networking.firewall.enable = false;
+    # # to execute at the end of a setupped network
+    # # networking.localCommands=
+  # };
 in
 rec {
   # network seems like a special attribute
