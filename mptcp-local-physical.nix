@@ -1,5 +1,5 @@
 let
-  libvirtd-base = {
+  libvirtd-base = networks: {
       headless = true;
 
       baseImageSize = 4; # GB
@@ -19,6 +19,7 @@ let
         <on_crash>preserve</on_crash>
       '';
 
+      inherit networks; 
 
       # CAREFUL ADD -c qemu:///system
 # virsh pool-create-as default dir --target /var/lib/libvirt/images
@@ -38,9 +39,9 @@ let
   };
 
   # lib.recursiveUpdate { } {deployment.libvirtd}
-  libvirtd-local = { config, pkgs, ... }: {
+  libvirtd-local = networks: { config, pkgs, ... }:  {
     deployment.targetEnv = "libvirtd";
-    deployment.libvirtd = libvirtd-base;
+    deployment.libvirtd = libvirtd-base networks;
   };
 
   libvirtd-remote = { config, pkgs, ... }:
@@ -57,59 +58,60 @@ let
     # deployment.libvirtd.kernel = "otot";
   };
 
+  # if any problem with default network, it can be recreated with
+  # doc says virsh net-define /usr/share/libvirt/networks/default.xml
+  # but on nixos it is 
+  # net-define ${libvirt}var/lib/libvirt/qemu/networks/default.xml
+  singlehomed_network = [ 
+      { source = "default"; type= "virtual"; }
+      # { source="mptcpB"; type="bridge"; }
+  ]; 
+
+  multihomed_network = [ 
+      { source = "default"; type= "virtual"; }
+      { source = "mptcpB"; type="bridge"; }
+  ]; 
+
   # TODO look at https://libvirt.org/formatdomain.html coredump-destroy
   debug_domain = ''<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
-	<qemu:commandline>
-		<qemu:arg value='-s'/>
-	</qemu:commandline>
-  <name>{name}</name>
-  <memory unit="MiB">{memory_size}</memory>
-  <vcpu>{vcpu}</vcpu>
-  {os}
-  <devices>
-	  <emulator>{emulator}</emulator>
-    <disk type="file" device="disk">
-      <driver name="qemu" type="qcow2"/>
-      <source file="{diskPath}"/>
-      <target dev="hda"/>
-    </disk>
-	{interfaces}
-    <input type="keyboard" bus="usb"/>
-    <input type="mouse" bus="usb"/>
-	{extra_devices}
-  </devices>
-    <on_crash>coredump-destroy</on_crash>
-  {extra_domain}
-</domain>'';
+    <qemu:commandline>
+        <qemu:arg value='-s'/>
+    </qemu:commandline>
+    <name>{name}</name>
+    <memory unit="MiB">{memory_size}</memory>
+    <vcpu>{vcpu}</vcpu>
+    {os}
+    <devices>
+        <emulator>{emulator}</emulator>
+      <disk type="file" device="disk">
+        <driver name="qemu" type="qcow2"/>
+        <source file="{diskPath}"/>
+        <target dev="hda"/>
+      </disk>
+      {interfaces}
+      <input type="keyboard" bus="usb"/>
+      <input type="mouse" bus="usb"/>
+      {extra_devices}
+    </devices>
+      <on_crash>coredump-destroy</on_crash>
+    {extra_domain}
+  </domain>'';
+
+  # update_network = { config, pkgs, lib, ...} @ args: networks:
+  # lib.recursiveUpdate (libvirtd-local args) { 
+  # #   deployment.libvirtd.template = debug_domain; 
+  #   deployment.libvirtd.networks = networks; 
+  # #   # this is the versions https://github.com/NixOS/nixops/pull/922
+  # };
 in
 {
   # example = libvirtd;
   # server = libvirtd-remote;
-  server = libvirtd-local;
+  # server = libvirtd-local singlehomed_network;
+  server = libvirtd-local multihomed_network;
 
   # we configure the debug domain just for one VM since -s for the 2 generates an error
   # in the port
   # client = libvirtd-local;
-  # client = { config, pkgs, lib, ...} @ args:
-  # # lib.traceShowVal 
-  # lib.recursiveUpdate (libvirtd-local args) { 
-  #   deployment.libvirtd.template = debug_domain; 
-  #   # create it with `virsh -c qemu:///system`
-  #   # $ net-define --file /home/teto/testbed/templates/libvirtd-network.xml
-  #   # net-start mptcpB
-  #   # net-autostart mptcpB
-  #   # this is the versions working with master 
-  #   # deployment.libvirtd.networks = [ "default" "mptcpB" ]; 
-
-  #   # this is the versions https://github.com/NixOS/nixops/pull/922
-  #   deployment.libvirtd.networks = [ 
-  #     # if any problem with default network, it can be recreated with
-  #     # doc says virsh net-define /usr/share/libvirt/networks/default.xml
-  #     # but on nixos it is 
-  #     # net-define ${libvirt}var/lib/libvirt/qemu/networks/default.xml
-  #     { source = "default"; type= "virtual"; }
-  #     # { source="mptcpB"; type="bridge"; }
-  #   ]; 
-  # };
-
+  # lib.traceShowVal 
 }

@@ -13,7 +13,7 @@ let
         /home/teto/dotfiles/nixpkgs/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
         # for now don't use it
-        # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
+        /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
     boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
@@ -36,16 +36,16 @@ let
     networking.dnsSingleRequest = false;
 
     # allowedTCPPorts = [ 80 ];
-    networking.networkmanager = {
-      enable=true;
-    #   # one of "dhclient", "dhcpcd", "internal"
-    #   dhcp="dhcpcd";
-    #   # networking.networkmanager.useDnsmasq
-    # #   enableStrongSwan = true;
-    # #   # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
-    # #   logLevel="DEBUG";
-    # #   wifi.scanRandMacAddress = true;
-    };
+    # networking.networkmanager = {
+    #   enable=true;
+    # #   # one of "dhclient", "dhcpcd", "internal"
+    # #   dhcp="dhcpcd";
+    # #   # networking.networkmanager.useDnsmasq
+    # # #   enableStrongSwan = true;
+    # # #   # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
+    # # #   logLevel="DEBUG";
+    # # #   wifi.scanRandMacAddress = true;
+    # };
 
     # contradicts networkmanager
     # networking.useDHCP = true;
