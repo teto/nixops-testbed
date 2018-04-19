@@ -69,7 +69,7 @@ let
 
   multihomed_network = [ 
       { source = "default"; type= "virtual"; }
-      { source = "mptcpB"; type="bridge"; }
+      { source = "mptcpB"; type="virtual"; }
   ]; 
 
   # TODO look at https://libvirt.org/formatdomain.html coredump-destroy
