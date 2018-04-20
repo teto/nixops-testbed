@@ -29,7 +29,7 @@ let
     # services.httpd.enable = true;
     # services.httpd.adminAddr = "alice@example.org";
     # services.httpd.documentRoot = "${pkgs.valgrind.doc}/share/doc/valgrind/html";
-    # networking.firewall.enable = false;
+    networking.firewall.enable = false;
 
     # just trying
     networking.dnsExtensionMechanism = false;
@@ -59,9 +59,9 @@ let
       ethtool # to check for segmentation offload
       tmux   # to have it survive ssh closing, nohup can help too
       iperf
-      # iperf2
+      iperf2
       netperf
-      # tshark
+      tshark
     ];
 
     # TODO here we can set a custom initramfs/kernel
