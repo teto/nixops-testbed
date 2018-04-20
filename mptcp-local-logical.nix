@@ -13,10 +13,46 @@ let
         /home/teto/dotfiles/nixpkgs/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
         # for now don't use it
-        /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
+        # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
     boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
+
+    # dispatcherScripts = [
+    #   {
+    #     source = ./mptcp_up ;
+    #     type = "up";
+    #   }
+    #   {
+    #     source = ./mptcp_down ;
+    #     type = "down";
+    #   }
+    #   ];
+
+
+  networking.networkmanager = {
+    enable=true;
+    # enableStrongSwan = true;
+    # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
+    logLevel="DEBUG";
+    # wifi.scanRandMacAddress = true;
+
+    # TODO reestablish with the correct nixpkgs !
+    dispatcherScripts = [
+      {
+        source = /home/teto/dotfiles/nixpkgs/modules/mptcp_up;
+        type = "up";
+      }
+      {
+        source = /home/teto/dotfiles/nixpkgs/modules/mptcp_down ;
+        type = "down";
+      }
+      ];
+
+    # networking.resolvconfOptions
+    # wifi.powersave=false;
+    # TODO configure dispatcherScripts  for mptcp
+  }
 
     # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
     # nixpkgs.overlays = [
