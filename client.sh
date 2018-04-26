@@ -20,7 +20,9 @@ sleep 3
 
 # run 5sec session
 # -t 5 = lasts 5sec
-iperf -d -c server -n 10 --connect-timeout 10 -J --logfile client.log
+ # -n, --bytes n[KM]
+ #              number of bytes to transmit (instead of -t)
+iperf -d -c server --bytes 10M --connect-timeout 10 -J --logfile client.log
 
 # TODO
 # -l -2 = number of request
