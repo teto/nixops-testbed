@@ -2,15 +2,15 @@
 
 # set -x
 if [ -z "$NIXOPS_DEPLOYMENT" ]; then
-	if [ $# -lt 1 ]; then
-		echo "Set \$NIXOPS_DEPLOYMENT or pass the domain name"
-		exit 1
-	else
+	# if [ $# -lt 1 ]; then
+	# 	echo "Set \$NIXOPS_DEPLOYMENT or pass the domain name"
+	# 	exit 1
+	# else
 		export NIXOPS_DEPLOYMENT="$1"
-	fi
+	# fi
 fi
 
-echo "Using deployement= $NIXOPS_DEPLOYMENT"
+echo "Using deployment=$NIXOPS_DEPLOYMENT"
 
 exit_trap ()
 {

@@ -50,9 +50,9 @@ let
     # TODO configure dispatcherScripts  for mptcp
   };
 
-    # nixpkgs.overlays = [ (import ./overlays/this.nix) (import ./overlays/that.nix) ]
+
     # nixpkgs.overlays = [
-    #   (import /home/teto/dotfiles/config/nixpkgs/overlays/i3.nix)
+    #   (import /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix)
     # ];
 
     # TODO run commands on boot
