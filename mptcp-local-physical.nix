@@ -2,7 +2,7 @@ let
   libvirtd-base = networks: {
       headless = true;
 
-      baseImageSize = 6; # GB
+      baseImageSize = 8; # GB
       # <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
       # domainType = "kvm\" xmlns:qemu=\"http://libvirt.org/schemas/domain/qemu/1.0";
       domainType = "kvm";
@@ -106,7 +106,8 @@ let
 in
 {
   # server = libvirtd-remote;
-  server = libvirtd-local singlehomed_network;
+  # singlehomed_network
+  server = libvirtd-local multihomed_network;
   client = libvirtd-local multihomed_network;
 
   # we configure the debug domain just for one VM since -s for the 2 generates an error

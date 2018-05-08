@@ -14,7 +14,8 @@ sleep 1
 # see on how to put limits https://www.thegeekstuff.com/2014/05/wireshark-file-buffer-size/
 # duration is in sec
 # if you use '-b duration:10' then 0w is used as a template client_XXXX.pcap
-tshark -n -q -f "mptcp" -w client.pcap  2>1 &
+# tcp port 5201
+tshark -n -q -f "tcp" -w client.pcap  2>1 &
 
 sleep 3
 
