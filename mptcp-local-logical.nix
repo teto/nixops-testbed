@@ -10,12 +10,14 @@ let
     mptcpUp =   /home/teto/dotfiles/nixpkgs/hooks/mptcp_up_raw;
     mptcpDown =  /home/teto/dotfiles/nixpkgs/hooks/mptcp_down_raw;
 
-    in
+    myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
+  in
   ({
     # prints everything superior to this number
 
     imports = [
       #  Not needed if we use the libvirt kernel interface
+        # /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common-all.nix
         /home/teto/dotfiles/nixpkgs/common-server.nix
@@ -51,9 +53,8 @@ let
   };
 
 
-    # nixpkgs.overlays = [
-    #   (import /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix)
-    # ];
+    nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ]
+    ;
 
     # TODO run commands on boot
 
@@ -66,21 +67,6 @@ let
     # just trying
     networking.dnsExtensionMechanism = false;
     networking.dnsSingleRequest = false;
-
-    # allowedTCPPorts = [ 80 ];
-    # networking.networkmanager = {
-    #   enable=true;
-    # #   # one of "dhclient", "dhcpcd", "internal"
-    # #   dhcp="dhcpcd";
-    # #   # networking.networkmanager.useDnsmasq
-    # # #   enableStrongSwan = true;
-    # # #   # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
-    # # #   logLevel="DEBUG";
-    # # #   wifi.scanRandMacAddress = true;
-    # };
-
-    # contradicts networkmanager
-    # networking.useDHCP = true;
 
     # boot.postBootCommands = ''
     #   ln -s /dev/sda1 /dev/root
