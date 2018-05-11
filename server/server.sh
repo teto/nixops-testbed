@@ -5,13 +5,16 @@
 # echo 'extra args'
 # echo $@
 
-rm server.pcap server.log
+rm -rf  out/ 
+# server.pcap server.log
+mkdir out
+
 pkill -9 tshark
 pkill -9 iperf
 
 echo "starting tshark"
 # add -i any to capture from several interfaces
-nohup tshark -n -w server.pcap -f "tcp port 5201" 2>1 &
+nohup tshark -n -w out/server.pcap -f "tcp port 5201" 2>1 &
 sleep 3
 
 # --one-off
@@ -20,7 +23,7 @@ sleep 3
 # --one-off
 # -d/--debug
 # --one-off
-nohup iperf -s -D  -d --logfile server.log
+nohup iperf -s -D  -d --logfile out/iperf.log
 
 # it is daemonized automatically
 # nohup netserver -4 -d

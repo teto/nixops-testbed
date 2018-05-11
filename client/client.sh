@@ -3,8 +3,10 @@
 echo 'extra args'
 echo $@
 
-rm ./*.pcap ./*.log
-rm tcpprobe.out
+# rm ./*.pcap ./*.log
+rm -rf out
+
+mkdir out
 
 pkill -9 tshark
 pkill -9 iperf
@@ -17,7 +19,7 @@ sleep 1
 # duration is in sec
 # if you use '-b duration:10' then 0w is used as a template client_XXXX.pcap
 # tcp port 5201
-tshark -n -q -f "tcp" -w client.pcap  2>1 &
+tshark -n -q -f "tcp" -w out/client.pcap  2>1 &
 
 sleep 3
 
@@ -27,10 +29,10 @@ sleep 3
 # a priori
 # [time][src][dst][length][snd_nxt][snd_una][snd_cwnd][ssthresh][snd_wnd][srtt][rcv_wnd]
 modprobe tcp_probe port=5201 full=1
-chmod 444 /proc/net/tcpprobe
+# chmod 444 /proc/net/tcpprobe
 
 # use nohup instead ?
-cat /proc/net/tcpprobe >tcpprobe.out &
+cat /proc/net/tcpprobe > out/tcpprobe.out &
 # not sure what this is (return value ?)
 TCPCAP=$!
 
@@ -38,7 +40,7 @@ TCPCAP=$!
 # -t 5 = lasts 5sec
  # -n, --bytes n[KM]
  #              number of bytes to transmit (instead of -t)
-iperf -d -c server --bytes 10M --connect-timeout 10 -J --logfile client.log
+iperf -d -c server --bytes 10M --connect-timeout 10 -J --logfile out/client.log
 
 # TODO
 # -l -2 = number of request
@@ -47,6 +49,6 @@ iperf -d -c server --bytes 10M --connect-timeout 10 -J --logfile client.log
 # or maybe just don't kill it
 # sleep 3
 pkill -9 tshark
-dmesg > kmsg.log
+dmesg > out/kmsg.log
 
 echo "client finished"

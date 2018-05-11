@@ -26,26 +26,26 @@ trap 'echo term or sign catched; exit 1' TERM INT
 TESTBED="$HOME/testbed"
 
 # clean local files so that it is easier to catch errors
-rm ./*.pcap ./*.log
+rm -rf server client
 # nixops ssh-for-each rm /tmp/*.pcap
 
 # upload scripts to /tmp
-nixops scp --to server "$TESTBED/server.sh" /tmp
-nixops scp --to client "$TESTBED/client.sh" /tmp
+nixops scp --to server "$TESTBED/server" .
+nixops scp --to client "$TESTBED/client" .
 # pkill server
 
 # need the & because the -f is not propagated to nixops ssh
 # --logfile server.log
 # need to redirect stderr because to let ssh disconnect when with -f ?
 echo "Starting server"
-nixops ssh server "sh -x /tmp/server.sh 2>1 >stdout.txt"
+nixops ssh server "sh -x server/server.sh 2>1 >stdout.txt"
 sleep 2
 
 echo "Starting client"
-nixops ssh client "sh /tmp/client.sh " --logfile client.log
+nixops ssh client "sh client/client.sh "
 
 echo "saving data from server"
-nixops ssh server "dmesg > kmsg.log"
+nixops ssh server "dmesg > out/kmsg.log"
 echo "data saved"
 
 # sleep 5
@@ -53,10 +53,6 @@ echo "data saved"
 # nixops ssh-for-each pkill tshark
 # rapatriate the captures
 
-nixops scp --from server kmsg.log skmsg.log
-nixops scp --from server server.pcap server.pcap
-nixops scp --from server server.log server.log
-nixops scp --from client kmsg.log ckmsg.log
-nixops scp --from client client.pcap client.pcap
-nixops scp --from client client.log client.log
-# $TESTBED/server.sh
+# rapatriate folders
+nixops scp --from server out server
+nixops scp --from client out client

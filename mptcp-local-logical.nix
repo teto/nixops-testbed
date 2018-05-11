@@ -26,7 +26,11 @@ let
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
-    boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
+
+  boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
+  # boot.kernelPackages = pkgs.linuxPackages_mptcp;
+
+  boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
   networking.networkmanager = {
     enable=true;
@@ -68,6 +72,7 @@ let
     networking.dnsExtensionMechanism = false;
     networking.dnsSingleRequest = false;
 
+    networking.iproute2.enable = true;
     # boot.postBootCommands = ''
     #   ln -s /dev/sda1 /dev/root
     # '';
