@@ -27,8 +27,11 @@ let
       ];
 
 
-  boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
+  # mptcp-manual
+  # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
+  boot.blacklistedKernelModules = ["nouveau"];
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
