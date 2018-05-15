@@ -3,6 +3,8 @@
 echo 'extra args'
 echo $@
 
+KERVER="$(uname -r)"
+
 # rm ./*.pcap ./*.log
 rm -rf out
 
@@ -10,7 +12,10 @@ mkdir out
 
 pkill -9 tshark
 pkill -9 iperf
+pkill -9 cat
 sleep 1
+
+rmmod "/run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tcp_probe.ko"
 
 # todo use timestamp for name
 # maybe I should use -H
@@ -28,7 +33,18 @@ sleep 3
 # insmod doesn't work, use modprobe instead ?
 # a priori
 # [time][src][dst][length][snd_nxt][snd_una][snd_cwnd][ssthresh][snd_wnd][srtt][rcv_wnd]
-modprobe tcp_probe port=5201 full=1
+# 
+	# return scnprintf(tbuf, n,
+	# 		"%lu.%09lu %pISpc %pISpc %d %#x %#x %u %u %u %u %u %u %u\n",
+	# 		(unsigned long)ts.tv_sec,
+	# 		(unsigned long)ts.tv_nsec,
+	# 		&p->src, &p->dst, p->length, p->snd_nxt, p->snd_una,
+	# 		p->snd_cwnd, p->ssthresh, p->snd_wnd, p->srtt,
+	# 		p->sowd_out, p->sowd_in, p->rcv_wnd);
+# 0.507024701 192.168.122.233:40080 192.168.122.167:5201 28 0x65cef3ca 0x65ce5bea 30 29 1930880 40548 0 0 87616
+# modprobe won't work for now see https://github.com/NixOS/nixpkgs/issues/40485
+# modprobe tcp_probe port=5201 full=1
+insmod /run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tcp_probe.ko port=5201 full=1
 # chmod 444 /proc/net/tcpprobe
 
 # use nohup instead ?

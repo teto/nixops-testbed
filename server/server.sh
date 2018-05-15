@@ -17,12 +17,11 @@ echo "starting tshark"
 nohup tshark -n -w out/server.pcap -f "tcp port 5201" 2>1 &
 sleep 3
 
-# --one-off
-# -s accepts only one connection at a time
+# --one-off accepts only one connection at a time
+# -s server
 # -D daemon
 # --one-off
 # -d/--debug
-# --one-off
 nohup iperf -s -D  -d --logfile out/iperf.log
 
 # it is daemonized automatically

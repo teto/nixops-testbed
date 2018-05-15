@@ -29,7 +29,7 @@ let
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
+  # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
   boot.blacklistedKernelModules = ["nouveau"];
 

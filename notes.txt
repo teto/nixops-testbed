@@ -1,3 +1,7 @@
+nixops create ~/testbed/mptcp-local-logical.nix ~/testbed/mptcp-local-physical.nix
+nixops deploy --debug
+
+
 tshark -V -r file_to_convert.pcap
 
 ip tuntap
@@ -28,4 +32,19 @@ debugfs /sys/kernel/debug debugfs rw,relatime 0 0
 
 
 /proc/kallsyms and /sys/kernel/debug/kernel_page_table
+
+
+
+
+Module parameters can be specified in two ways: via the kernel command
+line with a module name prefix, or via modprobe, e.g.:
+
+    (kernel command line) usbcore.blinkenlights=1
+    (modprobe command line) modprobe usbcore blinkenlights=1
+
+Parameters for modules which are built into the kernel need to be
+specified on the kernel command line.  modprobe looks through the
+kernel command line (/proc/cmdline) and collects module parameters
+when it loads a module, so the kernel command line can be used for
+loadable modules too.
 
