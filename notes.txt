@@ -2,6 +2,10 @@ nixops create ~/testbed/mptcp-local-logical.nix ~/testbed/mptcp-local-physical.n
 nixops deploy --debug
 
 
+
+By default tshark will capture from the first interface, you need to add any to
+check that it worked ok
+
 tshark -V -r file_to_convert.pcap
 
 ip tuntap
@@ -11,7 +15,7 @@ sudo lkl-hijack.sh ping 127.0.0.1
 This is good to test your latency
 http://bencane.com/2012/07/16/tc-adding-simulated-network-latency-to-your-linux-server/
 
-tc qdisc -s 
+tc -s qdisc ls dev eth0
 
 tc qdisc add dev enp0s2 root netem delay 100ms
 

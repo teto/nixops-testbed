@@ -46,28 +46,14 @@ def plot_owd(filename):
         df = pd.read_csv(
             fd,
             comment='#',
-            # we don't need 'header' when metadata is with comment
-            header=None,
+            header=None,  # we don't need 'header' when metadata is with comment
             names=fields.keys(),
-            # skiprows
-            # sep=' ',
             delim_whitespace=True, # use whitespace as delimiter
-            # having both a converter and a dtype for a field generates warnings
-            # so we pop tcp.flags
             dtype=fields,
             
-            usecols = [ 'time', 'sowd_out', 'sowd_in'],
-
-            # converters={
-            #     "tcp.flags": _convert_flags,
-            #     "mptcp.reinjection": functools.partial(_convert_to_list, field="reinjectionOf"),
-            # },
-            nrows=10, # useful for debugging purpose
-            # na_filter=, # might make it able to deal with non-TCP packets
-            # memory_map=True, # could speed up processing
+            # usecols = [ 'time', 'sowd_out', 'sowd_in'],
+            nrows=40, # useful for debugging purpose
         )
-
-
 
         fig = plt.figure()
         axes = fig.gca()
@@ -75,10 +61,12 @@ def plot_owd(filename):
 
         axes.set_ylabel("One way delay (OWD)")
         axes.set_xlabel("elapsed time (s)")
-        # axes.set_ylim([ymin,ymax])
 
-        # df.lines
+        # TODO move afterwards ?
         df.set_index('time')
+
+        # as_index=False
+        df.groupby(by=[ 'src', 'dst',  ])
         ax1 = df.plot.line(ax=axes,
                 # style=marker,
                 # legend=False
@@ -118,8 +106,6 @@ def main(arguments=None):
     )
 
     args, unknown_args = parser.parse_known_args(arguments)
-
-
 
     # level = logging.CRITICAL - min(args.debug, 4) * 10
     # log.setLevel(level)

@@ -7,8 +7,53 @@ let
     ip = "${pkgs.iproute}/bin/ip";
     logger = "${pkgs.utillinux}/bin/logger";
     
+    # networkmanager hooks
     mptcpUp =   /home/teto/dotfiles/nixpkgs/hooks/mptcp_up_raw;
     mptcpDown =  /home/teto/dotfiles/nixpkgs/hooks/mptcp_down_raw;
+
+    ifCheck= ''
+      if [ "$DEVICE_IFACE" = lo ]; then
+          logger -t mptcp_up "if localhost or $MODE then abort "
+          exit 0
+      fi
+
+      if [ -z "$DEVICE_IFACE" ]; then
+          logger "invalid \$DEVICE_IFACE"
+          exit 0
+      fi
+      '';
+
+    addDelay = pkgs.writeText "add_delay" ''
+      ${ifCheck}
+
+      if [ "$EVENT" != "up" ]; then
+          logger "exit $EVENT != down"
+      fi
+
+      logger "adding delay"
+      set -x
+
+
+      # remove it just in case it already exists
+      tc qdisc del dev "$DEVICE_IFACE" root netem
+      # here we can add some variance https://netbeez.net/blog/how-to-use-the-linux-traffic-control/
+      # via appending a 10ms
+      tc qdisc add dev "$DEVICE_IFACE" root netem delay 100ms
+    '';
+
+    removeDelay = pkgs.writeText "remove_delay" ''
+
+      ${ifCheck}
+
+      if [ "$EVENT" != "up" ]; then
+          logger "exit $EVENT != down"
+      fi
+
+      logger "removing delay"
+
+      set -x
+      tc qdisc del dev "$DEVICE_IFACE" root netem
+    '';
 
     myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
   in
@@ -30,6 +75,8 @@ let
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
   # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
+
+  # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
   boot.blacklistedKernelModules = ["nouveau"];
 
@@ -46,12 +93,21 @@ let
     dispatcherScripts = [
       {
         source = mptcpUp;
-        type = "up";
+        # type = "up";
       }
+      # {
+      #   source = mptcpDown;
+      #   # type = "down";
+      # }
+      # netem-based hooks
       {
-        source = mptcpDown;
-        type = "down";
+        source = addDelay;
+        # type = "up";
       }
+      # {
+      #   source = removeDelay;
+      #   # type = "down";
+      # }
     ];
 
     # networking.resolvconfOptions

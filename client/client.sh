@@ -15,7 +15,13 @@ pkill -9 iperf
 pkill -9 cat
 sleep 1
 
-rmmod "/run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tcp_probe.ko"
+
+# tc qdisc del dev "$DEVICE_IFACE" root netem
+# here we can add some variance https://netbeez.net/blog/how-to-use-the-linux-traffic-control/
+# via appending a 10ms
+# tc qdisc add dev "$DEVICE_IFACE" root netem delay 100ms
+
+# rmmod "/run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tcp_probe.ko"
 
 # todo use timestamp for name
 # maybe I should use -H
@@ -24,27 +30,17 @@ rmmod "/run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tc
 # duration is in sec
 # if you use '-b duration:10' then 0w is used as a template client_XXXX.pcap
 # tcp port 5201
-tshark -n -q -f "tcp" -w out/client.pcap  2>1 &
+# 
+tshark -i any -n -q -f "tcp" -w out/client.pcap  2>1 &
 
 sleep 3
 
 
 # start tcpprobe
 # insmod doesn't work, use modprobe instead ?
-# a priori
-# [time][src][dst][length][snd_nxt][snd_una][snd_cwnd][ssthresh][snd_wnd][srtt][rcv_wnd]
-# 
-	# return scnprintf(tbuf, n,
-	# 		"%lu.%09lu %pISpc %pISpc %d %#x %#x %u %u %u %u %u %u %u\n",
-	# 		(unsigned long)ts.tv_sec,
-	# 		(unsigned long)ts.tv_nsec,
-	# 		&p->src, &p->dst, p->length, p->snd_nxt, p->snd_una,
-	# 		p->snd_cwnd, p->ssthresh, p->snd_wnd, p->srtt,
-	# 		p->sowd_out, p->sowd_in, p->rcv_wnd);
-# 0.507024701 192.168.122.233:40080 192.168.122.167:5201 28 0x65cef3ca 0x65ce5bea 30 29 1930880 40548 0 0 87616
 # modprobe won't work for now see https://github.com/NixOS/nixpkgs/issues/40485
 # modprobe tcp_probe port=5201 full=1
-insmod /run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tcp_probe.ko port=5201 full=1
+# insmod /run/current-system/kernel-modules/lib/modules/$KERVER/kernel/net/ipv4/tcp_probe.ko port=5201 full=1
 # chmod 444 /proc/net/tcpprobe
 
 # use nohup instead ?
@@ -56,7 +52,8 @@ TCPCAP=$!
 # -t 5 = lasts 5sec
  # -n, --bytes n[KM]
  #              number of bytes to transmit (instead of -t)
-iperf -d -c server --bytes 10M --connect-timeout 10 -J --logfile out/client.log
+ # --connect-timeout is in milliseconds
+iperf -d -c server --bytes 10M --connect-timeout 1000 -J --logfile out/client.log
 
 # TODO
 # -l -2 = number of request
