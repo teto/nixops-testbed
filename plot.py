@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
 import pandas as pd
+import matplotlib.pyplot as plt
 import sys
 import argparse
+import logging
 from collections import OrderedDict
 
 
@@ -41,11 +43,12 @@ fields = OrderedDict ([
 def plot_owd(filename):
 
     with open(filename) as fd:
-        data = pd.read_csv(
+        df = pd.read_csv(
             fd,
             comment='#',
             # we don't need 'header' when metadata is with comment
-            header=False,
+            header=None,
+            names=fields.keys(),
             # skiprows
             # sep=' ',
             delim_whitespace=True, # use whitespace as delimiter
@@ -63,6 +66,27 @@ def plot_owd(filename):
             # na_filter=, # might make it able to deal with non-TCP packets
             # memory_map=True, # could speed up processing
         )
+
+
+
+        fig = plt.figure()
+        axes = fig.gca()
+        handles, labels = axes.get_legend_handles_labels()
+
+        axes.set_ylabel("One way delay (OWD)")
+        axes.set_xlabel("elapsed time (s)")
+        # axes.set_ylim([ymin,ymax])
+
+        # df.lines
+        df.set_index('time')
+        ax1 = df.plot.line(ax=axes,
+                # style=marker,
+                # legend=False
+        )
+        # lines, labels = ax1.get_legend_handles_labels()
+        # legend_artists.append(lines[-1])
+        # legends.append("dack for sf %d" % tcpstream)
+        plt.show()
 
 def main(arguments=None):
     """
@@ -83,7 +107,7 @@ def main(arguments=None):
     )
 
     parser.add_argument(
-        "file", dest="input_file",
+        "input_file",
         help="Either a pcap or a csv file (in good format)."
     )
     # parser.add_argument('--version', action='version', version="%s" % (__version__))
@@ -97,13 +121,13 @@ def main(arguments=None):
 
 
 
-    level = logging.CRITICAL - min(args.debug, 4) * 10
-    log.setLevel(level)
-    print("Log level set to %s " % logging.getLevelName(level))
+    # level = logging.CRITICAL - min(args.debug, 4) * 10
+    # log.setLevel(level)
+    # print("Log level set to %s " % logging.getLevelName(level))
 
-    log.debug("Starting in folder %s" % os.getcwd())
-    log.debug("Pandas version: %s" % pd.__version__)
-    log.debug("cmd2 version: %s" % cmd2.__version__)
+    # log.debug("Starting in folder %s" % os.getcwd())
+    # log.debug("Pandas version: %s" % pd.__version__)
+    # log.debug("cmd2 version: %s" % cmd2.__version__)
 
 
     plot_owd(args.input_file)
