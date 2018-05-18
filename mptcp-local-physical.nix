@@ -108,7 +108,7 @@ in
 {
   # server = libvirtd-remote;
   # singlehomed_network
-  server = libvirtd-local multihomed_network;
+  server = libvirtd-local singlehomed_network;
   client = libvirtd-local multihomed_network;
 
   # we configure the debug domain just for one VM since -s for the 2 generates an error

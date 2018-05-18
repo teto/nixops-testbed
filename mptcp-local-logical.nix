@@ -71,6 +71,11 @@ let
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
+      # moved it
+  # system.activationScripts.createDevRoot = ''
+  #   # if does not exist ?!
+  #   ln -s /dev/sda1 /dev/root
+  # '';
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
@@ -181,6 +186,15 @@ rec {
   # server = tpl ;
   # <custom/>
   # server = import /home/teto/dotfiles/nixpkgs/config-iij-mptcp.nix;
-  server = tpl;
+  # 
+  server = {  config, pkgs, lib,  ... } @ args: 
+    tpl args // {
+      # TODO configure for 
+      # now that we have qemu-agent it should be possible to use static ip addresses too
+      # networking.interfaces = {
+      #   ipv4.addresses = [ { address = "10.0.0.1"; prefixLength = 16; } { address = "192.168.1.1"; prefixLength = 24; } ]
+      # ipv4.routes = [ { address = "10.0.0.0"; prefixLength = 16; } { address = "192.168.2.0"; prefixLength = 24; via = "192.168.1.1"; } ]
+      # };
+    };
   client = tpl;
 }
