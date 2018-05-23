@@ -53,7 +53,7 @@ TCPCAP=$!
  # -n, --bytes n[KM]
  #              number of bytes to transmit (instead of -t)
  # --connect-timeout is in milliseconds
-iperf -d -c server --bytes 10M --connect-timeout 1000 -J --logfile out/client.log
+iperf -d -c server --bytes 512K --connect-timeout 1000 -J --logfile out/client.log
 
 # TODO
 # -l -2 = number of request

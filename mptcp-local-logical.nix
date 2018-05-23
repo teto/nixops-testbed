@@ -63,6 +63,7 @@ let
     imports = [
       #  Not needed if we use the libvirt kernel interface
         # /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix
+        /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         /home/teto/dotfiles/nixpkgs/common-all.nix
         /home/teto/dotfiles/nixpkgs/common-server.nix
@@ -89,10 +90,8 @@ let
 
   networking.networkmanager = {
     enable=true;
-    # enableStrongSwan = true;
     # one of "OFF", "ERR", "WARN", "INFO", "DEBUG", "TRACE"
     logLevel="DEBUG";
-    # wifi.scanRandMacAddress = true;
 
     # TODO reestablish with the correct nixpkgs !
     dispatcherScripts = [
@@ -100,24 +99,11 @@ let
         source = mptcpUp;
         # type = "up";
       }
-      # {
-      #   source = mptcpDown;
-      #   # type = "down";
-      # }
       # netem-based hooks
       {
         source = addDelay;
-        # type = "up";
       }
-      # {
-      #   source = removeDelay;
-      #   # type = "down";
-      # }
     ];
-
-    # networking.resolvconfOptions
-    # wifi.powersave=false;
-    # TODO configure dispatcherScripts  for mptcp
   };
 
 
