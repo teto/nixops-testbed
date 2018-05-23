@@ -33,6 +33,8 @@ let
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
+  networking.mptcp.enable = true;
+
   networking.networkmanager = {
     enable=true;
     logLevel="DEBUG";

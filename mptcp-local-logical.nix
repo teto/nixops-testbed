@@ -106,6 +106,8 @@ let
     ];
   };
 
+    # TODO test with
+    networking.mptcp.enable = true;
 
     nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ]
     ;

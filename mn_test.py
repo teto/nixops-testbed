@@ -1,16 +1,14 @@
 #!/usr/bin/python
 
 """
-mininet_progmp_helper.py: Simple example of MPTCP in Mininet to test ProgMP Scheduler.
-
-Check https://progmp.net for more details.
+derived from mininet_progmp_helper.py
 
 """
 
 import os
 from time import sleep
 import argparse
-from progmp import ProgMP
+# from progmp import ProgMP
 
 from mininet.cli import CLI
 from mininet.topo import Topo
@@ -68,7 +66,7 @@ def runExperiment(number_of_paths, with_cli, loss):
   
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
+    # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
     parser.add_argument("-n", "--number_of_subflows", help="The number of subflows")
     parser.add_argument("-d", "--debug", help="Running in debug mode", default=False)
     parser.add_argument("-c", "--cli", help="Waiting in command line interface", default=False)
@@ -87,22 +85,22 @@ if __name__ == '__main__':
     # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
     os.system('sysctl -w net.mptcp.mptcp_path_manager=fullmesh')
     
-    schedulerName = ProgMP.getSchedulerName(args.file)
-    if schedulerName is None:
-        print "Scheduler file makes some trouble..."
-        exit()
+    # schedulerName = ProgMP.getSchedulerName(args.file)
+    # if schedulerName is None:
+    #     print "Scheduler file makes some trouble..."
+    #     exit()
         
-    with open(args.file, "r") as src:
-        schedProgStr = src.read()
+    # with open(args.file, "r") as src:
+    #     schedProgStr = src.read()
         
-    try:
-        ProgMP.loadScheduler(schedProgStr)
-    except:
-        print "Scheduler loading error."
-        exit()
+    # try:
+    #     ProgMP.loadScheduler(schedProgStr)
+    # except:
+    #     print "Scheduler loading error."
+    #     exit()
     
-    print "now setting sched", schedulerName
-    ProgMP.setDefaultScheduler(schedulerName)
+    # print "now setting sched", schedulerName
+    # ProgMP.setDefaultScheduler(schedulerName)
    
     if args.number_of_subflows:
         number_of_paths = [int(args.number_of_subflows)]
@@ -113,5 +111,5 @@ if __name__ == '__main__':
         print "Running experiments with ", paths, "subflows"
         runExperiment(paths, args.cli, args.loss)
     
-    ProgMP.setDefaultScheduler("simple")
-    ProgMP.removeScheduler(schedulerName)
+    # ProgMP.setDefaultScheduler("simple")
+    # ProgMP.removeScheduler(schedulerName)
