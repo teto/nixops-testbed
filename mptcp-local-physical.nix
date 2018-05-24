@@ -2,6 +2,7 @@ let
   libvirtd-base = networks: {
       headless = true;
 
+      memorySize = 1024; # MB
       baseImageSize = 8; # GB
       # <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
       # domainType = "kvm\" xmlns:qemu=\"http://libvirt.org/schemas/domain/qemu/1.0";

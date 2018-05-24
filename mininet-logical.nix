@@ -29,7 +29,7 @@ let
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
-  boot.blacklistedKernelModules = ["nouveau"];
+  # boot.blacklistedKernelModules = ["nouveau"];
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
@@ -45,6 +45,11 @@ let
     enable = true;
   };
 
+  # otherwise nix-shell won't work
+  nix.nixPath = [
+      # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
+      "nixpkgs=https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
+  ];
 
 });
 in
@@ -56,4 +61,5 @@ rec {
   };
 
   main = tpl;
+  # or inherit main
 }
