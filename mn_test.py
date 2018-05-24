@@ -14,9 +14,8 @@ from mininet.cli import CLI
 from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.link import TCLink
-from mininet.log import setLogLevel
+from mininet.log import setLogLevel, info
 
-__author__ = "Alexander Froemmgen"
 
 class StaticTopo(Topo):
     "Simple topo with 2 hosts and 'number_of_paths' paths"
@@ -73,7 +72,7 @@ if __name__ == '__main__':
     parser.add_argument("-l", "--loss", help="Loss rate", default=0)
     args = parser.parse_args()
     
-    setLogLevel('warning')
+    setLogLevel('debug')
     
     if args.debug:
         os.system('sysctl -w net.mptcp.mptcp_debug=1')

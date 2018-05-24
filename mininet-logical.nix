@@ -31,6 +31,11 @@ let
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
   # boot.blacklistedKernelModules = ["nouveau"];
 
+  environment.systemPackages = with pkgs; [
+    python
+    # (python.withPackages(ps: with ps; [ mininet-python ] ))
+  ];
+
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
   networking.mptcp.enable = true;
