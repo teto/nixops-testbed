@@ -108,6 +108,7 @@ let
 
     # TODO test with
     networking.mptcp.enable = true;
+    # networking.iproute2.enable = true;
 
     nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ]
     ;
@@ -124,10 +125,10 @@ let
     networking.dnsExtensionMechanism = false;
     networking.dnsSingleRequest = false;
 
-    networking.iproute2.enable = true;
-    # boot.postBootCommands = ''
-    #   ln -s /dev/sda1 /dev/root
-    # '';
+
+    boot.postBootCommands = ''
+      ln -s /dev/sda1 /dev/root
+    '';
 
     environment.systemPackages = with pkgs; [
       at # to run in background
@@ -158,7 +159,6 @@ let
     #   # eth1 = { name = "eth1"; useDHCP=true; };
     # };
 
-    # networking.firewall.enable = false;
     # # to execute at the end of a setupped network
     # # networking.localCommands=
   # };

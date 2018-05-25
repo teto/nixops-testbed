@@ -24,8 +24,9 @@
       '';
 
       # To mount the folder
-      # mount testbed ./testbed -t 9p -o trans=virtio
       # maybe I need to add a fileSystem ?
+      # mount testlabel /testbed -t 9p -o trans=virtio
+      # mount mnlabel /mininet -t 9p -o trans=virtio
       extraDevicesXML = ''
         <serial type='pty'>
         <target port='0'/>
@@ -35,36 +36,47 @@
         </console>
         <filesystem type='mount' accessmode='passthrough'>
             <source dir='/home/teto/testbed'/>
-            <target dir='testlabel'/>
+            <target dir='xp'/>
         </filesystem>
         <filesystem type='mount' accessmode='passthrough'>
             <source dir='/home/teto/mininet'/>
-            <target dir='mnlabel'/>
+            <target dir='mn'/>
+        </filesystem>
+        <filesystem type='mount' accessmode='passthrough'>
+            <source dir='/home/teto/nixpkgs'/>
+            <target dir='nixpkgs'/>
         </filesystem>
       '';
     };
 
-    # might trump boot
-    #fileSystems."/mininet" = {
-    #  device = "mnlabel";
-    #  fsType = "9p";
-    #  options = [ "uid=1000" 
-    #    # "trans=virtio"
-    #      # allow for it to be written
-    #      # TODO use users gid ? or create a teto one ?
-    #      #"gid=33" 
-    #    ];
-    #};
-    #fileSystems."/testbed" = {
-    #  device = "testlabel";
-    #  fsType = "9p";
-    #  options = [ "uid=1000" 
-    #    # "trans=virtio"
-    #      # allow for it to be written
-    #      # TODO use users gid ? or create a teto one ?
-    #      #"gid=33" 
-    #    ];
-    #};
+
+    networking.firewall.enable = false;
+
+     # might trump boot
+     # nofail Do not report errors for this device if it does not exist
+     # Mount points are created automatically if they don’t already exist.
+    fileSystems."/home/teto/mininet" = {
+      device = "mn";
+      fsType = "9p";
+      options = [
+        # "uid=1000" 
+        # "trans=virtio"
+          # allow for it to be written
+          # TODO use users gid ? or create a teto one ?
+          #"gid=33" 
+          "nofail"
+        ];
+    };
+    fileSystems."/testbed" = {
+      device = "xp";
+      fsType = "9p";
+      options = [ "nofail" ];
+    };
+    fileSystems."/root/nixpkgs" = {
+      device = "nixpkgs";
+      fsType = "9p";
+      options = [ "nofail" ];
+    };
 
     # VIRTUALBOX config 
     #deployment.targetEnv = "virtualbox"; # section 2
@@ -85,15 +97,5 @@
     #};
 
 
-    ## to mount
-    #fileSystems."/testbed" = { # section 5
-    #  device = "main";
-    #  fsType = "vboxsf";
-    #  options = [ "uid=1000" 
-    #      # allow for it to be written
-    #      # TODO use users gid ? or create a teto one ?
-    #      #"gid=33" 
-    #    ];
-    #};
-  };
+    };
 }

@@ -53,7 +53,8 @@ let
   # otherwise nix-shell won't work
   nix.nixPath = [
       # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
-      "nixpkgs=https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
+      "nixpkgs=/root/nixpkgs"
+      # "https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
   ];
 
 });
