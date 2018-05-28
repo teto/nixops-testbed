@@ -67,12 +67,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
     parser.add_argument("-n", "--number_of_subflows", help="The number of subflows")
-    parser.add_argument("-d", "--debug", help="Running in debug mode", default=False)
+    parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
     parser.add_argument("-c", "--cli", help="Waiting in command line interface", default=False)
     parser.add_argument("-l", "--loss", help="Loss rate", default=0)
     args = parser.parse_args()
     
-    setLogLevel('debug')
+    setLogLevel(args.debug)
     
     if args.debug:
         os.system('sysctl -w net.mptcp.mptcp_debug=1')

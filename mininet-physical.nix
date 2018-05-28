@@ -70,7 +70,9 @@
     fileSystems."/testbed" = {
       device = "xp";
       fsType = "9p";
-      options = [ "nofail" ];
+      options = [ "nofail" 
+      # "ro"
+    ];
     };
     fileSystems."/root/nixpkgs" = {
       device = "nixpkgs";
