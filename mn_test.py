@@ -1,5 +1,5 @@
-#!/usr/bin/python
-
+#!nix-shell -p 'python.withPackages(ps:[ps.mininet-python])
+# todo add python ?
 """
 derived from mininet_progmp_helper.py
 
@@ -16,6 +16,9 @@ from mininet.net import Mininet
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 
+# look for __mptcp_reinject_data call
+# [   63.813460] acking on fast path, looking for best sock 
+# [   63.813461] Looking for fastest path
 
 class StaticTopo(Topo):
     "Simple topo with 2 hosts and 'number_of_paths' paths"
@@ -26,8 +29,9 @@ class StaticTopo(Topo):
         for i in range(0, number_of_paths): 
             s = self.addSwitch('s' + str(i))
 
-            self.addLink(h1, s, bw=100, delay="20ms", loss=float(loss))
-            self.addLink(h2, s, bw=100, delay="20ms", loss=float(loss))
+            # one good fast path
+            self.addLink(h1, s, bw=100, delay="80ms", loss=0)
+            self.addLink(h2, s, bw=100, delay="120ms", loss=float(loss))
 
 def runExperiment(number_of_paths, with_cli, loss):
     net = Mininet(topo=StaticTopo(number_of_paths, loss), link=TCLink)
@@ -46,14 +50,14 @@ def runExperiment(number_of_paths, with_cli, loss):
         h1.cmd("ping 1" + str(i) + ".0.0.2 -c 4")
     
     if with_cli:
-        print "Experiment is ready to start... enter exit to start"
+        print("Experiment is ready to start... enter exit to start")
         CLI(net)
 
     h2.cmd('iperf -s -i 1 -y C > server_' + str(number_of_paths) + '.log &')
     h1.cmd('iperf -c 10.0.0.2 -t 10 -i 1 > client' + str(number_of_paths) + '.log')
 
     if with_cli:
-        print "Experiment finished... enter exit to finish"
+        print ("Experiment finished... enter exit to finish")
         CLI(net)
     
     # lets wait a moment
@@ -74,40 +78,25 @@ if __name__ == '__main__':
     
     setLogLevel(args.debug)
     
-    if args.debug:
-        os.system('sysctl -w net.mptcp.mptcp_debug=1')
-    else:
-        os.system('sysctl -w net.mptcp.mptcp_debug=0')
+    # if args.debug:
+    #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
+    # else:
+    #     os.system('sysctl -w net.mptcp.mptcp_debug=0')
 
     os.system('sysctl -w net.mptcp.mptcp_enabled=1')
+
     # we don't have their RBS scheduler
     # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
+
     os.system('sysctl -w net.mptcp.mptcp_path_manager=fullmesh')
     
-    # schedulerName = ProgMP.getSchedulerName(args.file)
-    # if schedulerName is None:
-    #     print "Scheduler file makes some trouble..."
-    #     exit()
-        
-    # with open(args.file, "r") as src:
-    #     schedProgStr = src.read()
-        
-    # try:
-    #     ProgMP.loadScheduler(schedProgStr)
-    # except:
-    #     print "Scheduler loading error."
-    #     exit()
-    
-    # print "now setting sched", schedulerName
-    # ProgMP.setDefaultScheduler(schedulerName)
-   
     if args.number_of_subflows:
         number_of_paths = [int(args.number_of_subflows)]
     else:
         number_of_paths = [1, 2, 3]
     
     for paths in number_of_paths:
-        print "Running experiments with ", paths, "subflows"
+        print("Running experiments with ", paths, "subflows")
         runExperiment(paths, args.cli, args.loss)
     
     # ProgMP.setDefaultScheduler("simple")

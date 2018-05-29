@@ -23,6 +23,13 @@ let
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
+
+  boot.postBootCommands = ''
+    ln -s /dev/sda1 /dev/root
+  '';
+
+  networking.firewall.enable = false;
+
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
   # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
@@ -32,6 +39,8 @@ let
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
+    netperf
+    tshark
     python
     # (python.withPackages(ps: with ps; [ mininet-python ] ))
   ];
