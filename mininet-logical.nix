@@ -42,10 +42,19 @@ let
     netperf
     tshark
     python
+    (linuxPackagesFor pkgs.mptcp-local-stable).bcc
+    mptcp-local-stable.dev
+    # will need to learn how to use it
+    tmux
     # (python.withPackages(ps: with ps; [ mininet-python ] ))
   ];
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
+
+
+  nixpkgs.overlays = let
+    myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
+    in lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ];
 
   networking.mptcp.enable = true;
 
@@ -59,13 +68,22 @@ let
     enable = true;
   };
 
-  # otherwise nix-shell won't work
-  nix.nixPath = [
-      # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
-      "nixpkgs=/root/nixpkgs"
-      # "https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
-  ];
+  system.nixos.stateVersion = "18.03";
 
+
+  nix = {
+  # otherwise nix-shell won't work
+    nixPath = [
+          # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
+          "nixpkgs=/root/nixpkgs"
+          "nixpkgs-overlays=/home/teto/dotfiles/nixpkgs/overlays"
+          # "https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
+    ];
+  # would be better with a dns name
+    binaryCaches =  [ "http://192.168.128.1:8080" ];
+    requireSignedBinaryCaches = false;
+
+  };
 });
 in
 rec {

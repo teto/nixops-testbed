@@ -20,18 +20,33 @@ from mininet.log import setLogLevel, info
 # [   63.813460] acking on fast path, looking for best sock 
 # [   63.813461] Looking for fastest path
 
+# todo make it so that we just have to unpack the parameter
+topo = [
+    # loss is in percoutage
+    # { 'bw': 10, 'delay': "20ms", "loss": 1},
+    # { 'bw': 1, 'delay': "100ms", "loss": 50},
+
+    # parameters taken from "how hard can it be"
+    # #G
+    { 'bw': 2, 'delay': "150ms", "loss": 1},
+    # fast wifi
+    { 'bw': 8, 'delay': "20ms", "loss": 20},
+
+]
+
 class StaticTopo(Topo):
     "Simple topo with 2 hosts and 'number_of_paths' paths"
     def build(self, number_of_paths = 2, loss = 0):
         h1 = self.addHost('h1')
         h2 = self.addHost('h2')
         
-        for i in range(0, number_of_paths): 
+        for i, params in enumerate(topo):
             s = self.addSwitch('s' + str(i))
 
             # one good fast path
-            self.addLink(h1, s, bw=100, delay="80ms", loss=0)
-            self.addLink(h2, s, bw=100, delay="120ms", loss=float(loss))
+            self.addLink(h1, s, **params)
+            self.addLink(h2, s, **params)
+            # self.addLink(h2, s, bw=100, delay="120ms", loss=float(loss))
 
 def runExperiment(number_of_paths, with_cli, loss):
     net = Mininet(topo=StaticTopo(number_of_paths, loss), link=TCLink)
@@ -89,6 +104,8 @@ if __name__ == '__main__':
     # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
 
     os.system('sysctl -w net.mptcp.mptcp_path_manager=fullmesh')
+
+    os.system('sysctl -w net.ipv4.tcp_rmem="400000 400000 400000"')
     
     if args.number_of_subflows:
         number_of_paths = [int(args.number_of_subflows)]

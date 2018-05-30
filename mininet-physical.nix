@@ -8,8 +8,8 @@
   main = { config, pkgs, ... }:  {
     deployment.targetEnv = "libvirtd";
     deployment.libvirtd = {
-      baseImageSize = 8; # GB
-      memorySize = 1024; # MB
+      baseImageSize = 9; # GB
+      memorySize = 2048; # MB
 
       # TODO keep for later
       #  boot.consoleLogLevel=1
@@ -35,7 +35,7 @@
         <target type='serial' port='0'/>
         </console>
         <filesystem type='mount' accessmode='passthrough'>
-            <source dir='/home/teto/testbed'/>
+            <source dir='/home/teto'/>
             <target dir='xp'/>
         </filesystem>
         <filesystem type='mount' accessmode='passthrough'>
@@ -55,7 +55,7 @@
      # might trump boot
      # nofail Do not report errors for this device if it does not exist
      # Mount points are created automatically if they don’t already exist.
-    fileSystems."/home/teto/mininet" = {
+    fileSystems."/root/mininet" = {
       device = "mn";
       fsType = "9p";
       options = [
@@ -67,11 +67,13 @@
           "nofail"
         ];
     };
-    fileSystems."/testbed" = {
+    fileSystems."/home/teto" = {
       device = "xp";
       fsType = "9p";
-      options = [ "nofail" 
-      # "ro"
+      options = [
+        "nofail" 
+        # "ro" might generate errors
+        # "ro"
     ];
     };
     fileSystems."/root/nixpkgs" = {
