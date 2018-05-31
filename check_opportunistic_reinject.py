@@ -9,22 +9,26 @@
 # https://github.com/iovisor/bcc/blob/master/docs/reference_guide.md#1-bpf
 from bcc import BPF
 from time import sleep, strftime
+import ctypes as ct
+import argparse
 
-    # u64 *tsp;
-    # u32 pid = bpf_get_current_pid_tgid();
-    # // fetch timestamp and calculate delta
-    # tsp = start.lookup(&pid);
-    # if (tsp == 0) {
-    #     return 0;   // missed start or filtered
-    # }
-    # u64 delta = (bpf_ktime_get_ns() - *tsp) / FACTOR;
-    # // store as histogram
-    # dist_key_t key = {.slot = bpf_log2l(delta)};
-    # __builtin_memcpy(&key.op, op, sizeof(key.op));
-    # dist.increment(key);
-    # start.delete(&pid);
-    # return 0;
 
+# https://github.com/iovisor/bcc/blob/master/tools/ext4slower.py
+parser = argparse.ArgumentParser(
+    description="trace reinjections",
+    # formatter_class=argparse.RawDescriptionHelpFormatter, epilog=examples
+    )
+
+parser.add_argument("-j", "--csv", action="store_true", help="just print fields: comma-separated values")
+
+args = parser.parse_args()
+
+
+# TODO trace args = mptcp_meta_retransmit_timer
+# instrument mptcp_sub_send_loss_probe
+# just look at __mptcp_reinject_data call
+
+# reference API at https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md
 prog = """
 #include <uapi/linux/ptrace.h>
 #include <net/sock.h>
@@ -33,48 +37,92 @@ prog = """
 BPF_HISTOGRAM(dist);
 BPF_PERF_OUTPUT(events);
 
+// define output data structure in C
+struct data_t {
+	u32 res;
+	u64 ts;
+};
+
 /* if the result is not null then we have an opportunistic reinjection */
 int check_ret(struct pt_regs *ctx) {
-    //  BPF_PERF_OUTPUT() is better ?
-    // bpf_trace_printk("Hello, World!\\n");
+    struct data_t data = {};
     int  ret = 0;
-    // pr_info ("Hello, World!\\n");
 
     /* ret is struct sk_buff * */
-    struct sk_buff *skb = PT_REGS_RC(ctx);
-    ret = (skb != 0);
+    int rawret  = PT_REGS_RC(ctx);
+    // struct sk_buff *skb
+
+    bpf_trace_printk("Hello, World!\\n");
+
+    ret = (rawret != 0) + 1;
     dist.increment( ret );
 
     // int perf_submit((void *)ctx, (void *)data, u32 data_size ) returns 0 on success
-    events.perf_submit(ctx, ret, sizeof(ret));
-    return 0;
+    data.res = ret;
+    data.ts = bpf_ktime_get_ns();
+    events.perf_submit(ctx, &data, sizeof(data));
+    return rawret;
 }
 """
+
+# define output data structure in Python
+TASK_COMM_LEN = 16    # linux/sched.h
+class Data(ct.Structure):
+    _fields_ = [("res", ct.c_ulonglong),
+                ("ts", ct.c_ulonglong),
+                ]
 
 b = BPF(text=prog)
 
 
-b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_ret")
+ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_ret")
+# ret = b.attach_kretprobe(event="tcp_v4_connect" , fn_name="check_ret")
+# print ("returned value of attach: %r" % ret)
 
 # header
-print("Tracing... Hit Ctrl-C to end.")
+# print("Tracing... Hit Ctrl-C to end.")
 
 #
 dist = b.get_table("dist")
 
-interval = 300; # seconds ?
-while (1):
+# interval = 300; # seconds ?
+def print_event(cpu, data, size):
+    event = ct.cast(data, ct.POINTER(Data)).contents
+    if args.csv:
+        print("%d,%d" % (event.ts, event.res,))
+    else:
+        print("Reinject ? ts %d => %d" % (event.ts, event.res,))
+
+
+
+
+if args.csv:
+    print("Timestamp,reinject")
+
+# loop with callback to print_event
+b["events"].open_perf_buffer(print_event)
+
+exiting = 0
+
+while 1:
     try:
-        if interval:
-            sleep(int(interval))
-        else:
-            sleep(99999999)
+        # Read messages from kernel pipe
+        # blocking by default
+        # b.perf_buffer_poll() # is the new API
+        b.kprobe_poll()
+        # (task, pid, cpu, flags, ts, msg) = b.trace_fields()
+        # (_tag, saddr_hs, daddr_hs, dport_s) = msg.split(" ")
+        # print("msg=", msg)
+
+    # except ValueError:
+    #     # Ignore messages from other tracers
+    #     continue
     except KeyboardInterrupt:
         exiting = 1
 
-    print("hello world")
+    # print("hello world")
+    # dist.print_log2_hist("My label", "operation")
 
-    dist.print_log2_hist("My label", "operation")
     # dist.clear()
 
     # countdown -= 1

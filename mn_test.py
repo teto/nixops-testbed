@@ -21,16 +21,18 @@ from mininet.log import setLogLevel, info
 # [   63.813461] Looking for fastest path
 
 # todo make it so that we just have to unpack the parameter
-topo = [
-    # loss is in percoutage
-    # { 'bw': 10, 'delay': "20ms", "loss": 1},
-    # { 'bw': 1, 'delay': "100ms", "loss": 50},
 
+topoWireLessHetero = [
     # parameters taken from "how hard can it be"
-    # #G
     { 'bw': 2, 'delay': "150ms", "loss": 1},
     # fast wifi
     { 'bw': 8, 'delay': "20ms", "loss": 20},
+]
+
+topo = [
+    # loss is in percoutage
+    { 'bw': 5, 'delay': "20ms", "loss": 1},
+    { 'bw': 5, 'delay': "20ms", "loss": 20},
 
 ]
 
@@ -61,6 +63,7 @@ def runExperiment(number_of_paths, with_cli, loss):
         h2.cmd('ifconfig h2-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
     
     # heat network to avoid intial packet artefacts
+    # for now I don't care
     for i in range(number_of_paths):
         h1.cmd("ping 1" + str(i) + ".0.0.2 -c 4")
     
