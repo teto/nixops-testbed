@@ -33,7 +33,6 @@ topo = [
     # loss is in percoutage
     { 'bw': 5, 'delay': "20ms", "loss": 1},
     { 'bw': 5, 'delay': "20ms", "loss": 20},
-
 ]
 
 class StaticTopo(Topo):
@@ -56,6 +55,8 @@ def runExperiment(number_of_paths, with_cli, loss):
     h1 = net.get('h1')
     h2 = net.get('h2')
 
+    h1.cmd('tshark -c 10.0.0.2  -n 100K -i 1 > client_' + str(number_of_paths) + '.log')
+
     # there is probably a better way, but somehow we have to configure
     # the IP adresses
     for i in range(0, number_of_paths):
@@ -72,7 +73,8 @@ def runExperiment(number_of_paths, with_cli, loss):
         CLI(net)
 
     h2.cmd('iperf -s -i 1 -y C > server_' + str(number_of_paths) + '.log &')
-    h1.cmd('iperf -c 10.0.0.2 -t 10 -i 1 > client' + str(number_of_paths) + '.log')
+    # sends 100 bytes
+    h1.cmd('iperf -c 10.0.0.2  -n 100K -i 1 > client_' + str(number_of_paths) + '.log')
 
     if with_cli:
         print ("Experiment finished... enter exit to finish")
@@ -90,6 +92,7 @@ if __name__ == '__main__':
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
     parser.add_argument("-n", "--number_of_subflows", help="The number of subflows")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
+    parser.add_argument("-t", "--capture", help="capture packets", default=False)
     parser.add_argument("-c", "--cli", help="Waiting in command line interface", default=False)
     parser.add_argument("-l", "--loss", help="Loss rate", default=0)
     args = parser.parse_args()

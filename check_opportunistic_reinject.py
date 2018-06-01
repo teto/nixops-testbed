@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env nix-shell 
+#!nix-shell -p python '(linuxPackagesFor mptcp-local-stable).bcc' mptcp-local-stable.dev -i python
 # Copyright (c) PLUMgrid, Inc.
 # Licensed under the Apache License, Version 2.0 (the "License")
 
@@ -38,31 +39,54 @@ BPF_HISTOGRAM(dist);
 BPF_PERF_OUTPUT(events);
 
 // define output data structure in C
-struct data_t {
+struct reinjection_event {
 	u32 res;
 	u64 ts;
+	u32 event; // type ?
+};
+enum EVENT_TYPE {
+TLP = 0,
+TIMEOUT,
+OPPORTUNISTIC  
 };
 
 /* if the result is not null then we have an opportunistic reinjection */
 int check_ret(struct pt_regs *ctx) {
-    struct data_t data = {};
+    struct reinjection_event data = {};
     int  ret = 0;
 
     /* ret is struct sk_buff * */
     int rawret  = PT_REGS_RC(ctx);
     // struct sk_buff *skb
 
-    bpf_trace_printk("Hello, World!\\n");
+    //    bpf_trace_printk("Hello, World!\\n");
 
     ret = (rawret != 0) + 1;
     dist.increment( ret );
 
     // int perf_submit((void *)ctx, (void *)data, u32 data_size ) returns 0 on success
-    data.res = ret;
+    data.event = ret;
+    data.res = OPPORTUNISTIC;
     data.ts = bpf_ktime_get_ns();
     events.perf_submit(ctx, &data, sizeof(data));
     return rawret;
 }
+
+
+/* if the result is not null then we have an opportunistic reinjection */
+int record_event(struct pt_regs *ctx) {
+    struct reinjection_event data = {};
+
+    // record snd_una ? subflow it was lost ?
+    data.res = PT_REGS_RC(ctx);
+    data.ts = bpf_ktime_get_ns();
+
+    data.event = TLP;
+    events.perf_submit(ctx, &data, sizeof(data));
+    return PT_REGS_RC(ctx);;
+}
+
+
 """
 
 # define output data structure in Python
@@ -70,26 +94,30 @@ TASK_COMM_LEN = 16    # linux/sched.h
 class Data(ct.Structure):
     _fields_ = [("res", ct.c_ulonglong),
                 ("ts", ct.c_ulonglong),
+                ("type", ct.c_ulonglong),
                 ]
 
 b = BPF(text=prog)
 
 
 ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_ret")
+
+# mptcp_meta_retransmit_timer
+ret = b.attach_kretprobe(event="mptcp_retransmit_skb" , fn_name="record_event")
+ret = b.attach_kretprobe(event="mptcp_sub_send_loss_probe" , fn_name="record_event")
 # ret = b.attach_kretprobe(event="tcp_v4_connect" , fn_name="check_ret")
 # print ("returned value of attach: %r" % ret)
-
 # header
 # print("Tracing... Hit Ctrl-C to end.")
 
 #
-dist = b.get_table("dist")
+# dist = b.get_table("dist")
 
 # interval = 300; # seconds ?
 def print_event(cpu, data, size):
     event = ct.cast(data, ct.POINTER(Data)).contents
     if args.csv:
-        print("%d,%d" % (event.ts, event.res,))
+        print("%d,%d,%d" % (event.type, event.ts, event.res, ))
     else:
         print("Reinject ? ts %d => %d" % (event.ts, event.res,))
 
@@ -97,7 +125,7 @@ def print_event(cpu, data, size):
 
 
 if args.csv:
-    print("Timestamp,reinject")
+    print("EventType,Timestamp,reinject")
 
 # loop with callback to print_event
 b["events"].open_perf_buffer(print_event)

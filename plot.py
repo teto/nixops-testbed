@@ -40,6 +40,69 @@ fields = OrderedDict ([
     ('rcv_wnd',  int)
 ])
 
+
+fields = OrderedDict ([
+    ('time', str),
+    ('src',  str),
+    ('dst',  str),
+    ('length',  int),
+    ('snd_nxt',  int),
+    ('snd_una',  int),
+    ('snd_cwnd',  int),
+    ('ssthresh',  int),
+    ('snd_wnd',  int),
+    ('srtt',  int),
+    ('sowd_out',  int),
+    ('sowd_in',  int),
+    ('rcv_wnd',  int)
+])
+
+
+def plot_reinjections(filename):
+
+    with open(filename) as fd:
+        df = pd.read_csv(
+            fd,
+            comment='#',
+            # usecols = [ 'time', 'sowd_out', 'sowd_in'],
+            nrows=40, # useful for debugging purpose
+        )
+
+        fig = plt.figure()
+        axes = fig.gca()
+        handles, labels = axes.get_legend_handles_labels()
+
+        axes.set_ylabel("success")
+        axes.set_xlabel("Time")
+
+        # TODO move afterwards ?
+        df.set_index('time')
+
+        # as_index=False
+        grouped_by = df.groupby(by='EventType')
+
+        # for eventType, d in grouped_by:
+        #     #
+        #     pplot = grouped_by.plot.line(
+        #         # gca = get current axes (Axes), create one if necessary
+        #         ax=axes,
+        #         legend=False,
+        #         x="abstime_sender",
+        #         y="owd",
+        #         label="toto", # seems to be a bug
+
+        ax1 = grouped_by.plot.line(ax=axes,
+                # style=marker,
+                # legend=False
+                # x="abstime_sender",
+                # y="owd",
+                label="test", # seems to be a bug
+        )
+        # lines, labels = ax1.get_legend_handles_labels()
+        # legend_artists.append(lines[-1])
+        # legends.append("dack for sf %d" % tcpstream)
+        plt.show()
+
 def plot_owd(filename):
 
     with open(filename) as fd:
@@ -75,6 +138,8 @@ def plot_owd(filename):
         # legend_artists.append(lines[-1])
         # legends.append("dack for sf %d" % tcpstream)
         plt.show()
+
+
 
 def main(arguments=None):
     """
@@ -116,7 +181,8 @@ def main(arguments=None):
     # log.debug("cmd2 version: %s" % cmd2.__version__)
 
 
-    plot_owd(args.input_file)
+    # plot_owd(args.input_file)
+    plot_reinjections(args.input_file)
 
 
 if __name__ == '__main__':
