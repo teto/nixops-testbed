@@ -65,18 +65,17 @@ def plot_reinjections(filename):
             fd,
             comment='#',
             # usecols = [ 'time', 'sowd_out', 'sowd_in'],
-            nrows=40, # useful for debugging purpose
+            # nrows=40, # useful for debugging purpose
         )
 
         fig = plt.figure()
         axes = fig.gca()
-        handles, labels = axes.get_legend_handles_labels()
 
         axes.set_ylabel("success")
         axes.set_xlabel("Time")
 
         # TODO move afterwards ?
-        df.set_index('time')
+        df.set_index('Timestamp', inplace=True)
 
         # as_index=False
         grouped_by = df.groupby(by='EventType')
@@ -90,18 +89,39 @@ def plot_reinjections(filename):
         #         x="abstime_sender",
         #         y="owd",
         #         label="toto", # seems to be a bug
+# style='.-'
+        def _get_type(idx):
 
-        ax1 = grouped_by.plot.line(ax=axes,
+            l = ["TLP", "RTO", "OPPORTUNISTIC" ]
+            return l[idx]
+
+        legend_artists = []
+
+        legends=[]
+        for label, df in grouped_by:
+            # df.vals.plot(kind="kde", ax=ax, label=label)
+            print("LABEL=", label)
+            ax1 = df.plot.line(
+                ax=axes,
                 # style=marker,
                 # legend=False
-                # x="abstime_sender",
-                # y="owd",
-                label="test", # seems to be a bug
-        )
-        # lines, labels = ax1.get_legend_handles_labels()
-        # legend_artists.append(lines[-1])
-        # legends.append("dack for sf %d" % tcpstream)
+                # x="Timestamp",
+                y="reinject",
+                style='o',
+                legend=False,
+                grid=True,
+            )
+
+            lines, labels = ax1.get_legend_handles_labels()
+            legend_artists.append(lines[-1])
+            legends.append(_get_type(label))
+
+        # location: 3 => bottom left, 4 => bottom right
+        axes.legend(legend_artists, legends, loc=4)
+
+        print("labels", labels)
         plt.show()
+
 
 def plot_owd(filename):
 

@@ -1,4 +1,5 @@
-#!nix-shell -p 'python.withPackages(ps:[ps.mininet-python])
+#!/usr/bin/env nix-shell 
+#!nix-shell -p 'python.withPackages(ps:[ps.mininet-python])' -i python
 # todo add python ?
 """
 derived from mininet_progmp_helper.py
@@ -13,7 +14,7 @@ import argparse
 from mininet.cli import CLI
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.link import TCLink
+from mininet.link import TCLink, AsymTCLink
 from mininet.log import setLogLevel, info
 
 # look for __mptcp_reinject_data call
@@ -22,6 +23,11 @@ from mininet.log import setLogLevel, info
 
 # todo make it so that we just have to unpack the parameter
 
+dataAmount = "10M"
+
+# can get parameters from 
+# Chan, M. C., & Ramjee, R. (2005). TCP/IP performance over 3G wireless links with rate and delay variation. Wireless Networks, 11(1–2), 81–97. https://doi.org/10.1007/s11276-004-4748-7
+
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
     { 'bw': 2, 'delay': "150ms", "loss": 1},
@@ -29,52 +35,100 @@ topoWireLessHetero = [
     { 'bw': 8, 'delay': "20ms", "loss": 20},
 ]
 
+forward={ 'bw': 10, 'delay': "20ms", "loss": 1}
+backward={ 'bw': 90, 'delay': "20ms", "loss": 1}
+
 topo = [
     # loss is in percoutage
-    { 'bw': 5, 'delay': "20ms", "loss": 1},
+    { 'bw': 5, 'delay': "20ms", "loss": 1, "max_queue_size":1000, "use_htb": True, 
+        'params1': forward, 'params2': backward
+    },
     { 'bw': 5, 'delay': "20ms", "loss": 20},
 ]
+
+# So with AsymTCLink one can use
+# Link.__init__(self, node1, node2, port1=port1, port2=port2,
+#               intfName1=intfName1, intfName2=intfName2,
+#               cls1=TCIntf,
+#               cls2=TCIntf,
+#               addr1=addr1, addr2=addr2,
+#               params1=par1,
+#               params2=par2)
+
 
 class StaticTopo(Topo):
     "Simple topo with 2 hosts and 'number_of_paths' paths"
     def build(self, number_of_paths = 2, loss = 0):
-        h1 = self.addHost('h1')
-        h2 = self.addHost('h2')
+        client = self.addHost('client')
+        server = self.addHost('server')
         
         for i, params in enumerate(topo):
             s = self.addSwitch('s' + str(i))
 
             # one good fast path
-            self.addLink(h1, s, **params)
-            self.addLink(h2, s, **params)
-            # self.addLink(h2, s, bw=100, delay="120ms", loss=float(loss))
+            self.addLink(client, s, **params)
+            link2 = self.addLink(server, s, **params)
+            # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
+            print("just for testing, link type = ", type(link2))
+
+class AsymetricTopo(Topo):
+    "Simple topo with 2 hosts and 'number_of_paths' paths"
+    def build(self, number_of_paths = 2, loss = 0):
+        client = self.addHost('client')
+        server = self.addHost('server')
+        
+        for i, params in enumerate(topo):
+            s = self.addSwitch('s' + str(i))
+
+            # TODO use instead
+            # AsymTCLink
+            # one good fast path
+            link1 = self.addLink(client, s, **params)
+            link2 = self.addLink(server, s, **params)
+            # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
+
 
 def runExperiment(number_of_paths, with_cli, loss):
-    net = Mininet(topo=StaticTopo(number_of_paths, loss), link=TCLink)
+    net = Mininet(topo=StaticTopo(number_of_paths, loss), link=AsymTCLink)
     net.start()
-    h1 = net.get('h1')
-    h2 = net.get('h2')
+    client = net.get('client')
+    server = net.get('server')
 
-    h1.cmd('tshark -c 10.0.0.2  -n 100K -i 1 > client_' + str(number_of_paths) + '.log')
 
     # there is probably a better way, but somehow we have to configure
     # the IP adresses
     for i in range(0, number_of_paths):
-        h1.cmd('ifconfig h1-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
-        h2.cmd('ifconfig h2-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
+        client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
+        server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
     
     # heat network to avoid intial packet artefacts
     # for now I don't care
     for i in range(number_of_paths):
-        h1.cmd("ping 1" + str(i) + ".0.0.2 -c 4")
+        client.cmd("ping 1" + str(i) + ".0.0.2 -c 4")
+
+    client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
+    server.cmd('tshark -i any -w out/server_' + str(number_of_paths) + '.pcap &')
     
     if with_cli:
         print("Experiment is ready to start... enter exit to start")
         CLI(net)
 
-    h2.cmd('iperf -s -i 1 -y C > server_' + str(number_of_paths) + '.log &')
-    # sends 100 bytes
-    h1.cmd('iperf -c 10.0.0.2  -n 100K -i 1 > client_' + str(number_of_paths) + '.log')
+    # iperf2 version
+    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+
+    # # iperf 3 version
+    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+
+    # netperf version
+    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+
+    # flent version
+    # flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
+    server.cmd('netserver -D > out/server_' + str(number_of_paths) + '.log &')
+    client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
 
     if with_cli:
         print ("Experiment finished... enter exit to finish")
@@ -84,6 +138,7 @@ def runExperiment(number_of_paths, with_cli, loss):
     sleep(3)
     # and ensure iperf is finished :-)
     os.system('pkill -f \'iperf\'')
+    os.system('pkill -f \'tshark\'')
     net.stop()
     sleep(1)
   
@@ -111,6 +166,7 @@ if __name__ == '__main__':
 
     os.system('sysctl -w net.mptcp.mptcp_path_manager=fullmesh')
 
+    # TODO use iperf command instead
     os.system('sysctl -w net.ipv4.tcp_rmem="400000 400000 400000"')
     
     if args.number_of_subflows:

@@ -39,6 +39,7 @@ let
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
+    flent # https://flent.org/intro.html#quick-start
     netperf
     tshark
     python

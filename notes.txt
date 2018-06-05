@@ -1,7 +1,8 @@
 nixops create ~/testbed/mptcp-local-logical.nix ~/testbed/mptcp-local-physical.nix
 nixops deploy --debug
 
-
+https://reproducingnetworkresearch.wordpress.com/2012/06/04/multipath-tcp-over-wifi-and-3g-links/
+https://bitbucket.org/angadsg/mininet-mptcp/src/ce38b53d0d06f56235b65269c21130e3d87ad5b7/src/topology.py?at=master&fileviewer=file-view-default
 
 By default tshark will capture from the first interface, you need to add any to
 check that it worked ok
