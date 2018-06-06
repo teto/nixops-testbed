@@ -12,6 +12,7 @@ derived from mininet_progmp_helper.py
 """
 
 import os
+import sys
 from time import sleep
 import argparse
 # from progmp import ProgMP
@@ -75,24 +76,10 @@ class StaticTopo(Topo):
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
             print("just for testing, link type = ", type(link2))
 
-class AsymetricTopo(Topo):
-    "Simple topo with 2 hosts and 'number_of_paths' paths"
-    def build(self, number_of_paths = 2, loss = 0):
-        client = self.addHost('client')
-        server = self.addHost('server')
-        
-        for i, params in enumerate(topo):
-            s = self.addSwitch('s' + str(i))
-
-            # TODO use instead
-            # AsymTCLink
-            # one good fast path
-            link1 = self.addLink(client, s, **params)
-            link2 = self.addLink(server, s, **params)
-            # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
 
 
 def runExperiment(number_of_paths, with_cli, loss):
+    # using 
     net = Mininet(topo=StaticTopo(number_of_paths, loss), link=AsymTCLink)
     net.start()
     client = net.get('client')
@@ -109,13 +96,27 @@ def runExperiment(number_of_paths, with_cli, loss):
     # for now I don't care
     for i in range(number_of_paths):
         client.cmd("ping 1" + str(i) + ".0.0.2 -c 4")
+        # client.cmd("owping 1" + str(i) + ".0.0.2 -c 4 2>&1 > owping" + str(i) + ".log ")
+
+    # sys.exit(1)
+
+    # owamp doesn't work through NAT except in authenticated mode
+    # create owamp
+    # todo I can create it directly
+    # created toto/test
+    # server.cmd('pfstore -f owamp.pfs -n toto')
+    
+    # to run via cli
+    # client owping 10.0.0.2 -c 4 -A A
+    # server owampd -U owamp -R . -d /tmp -v -a A
+
+    if with_cli:
+        print("Experiment is ready to start... enter exit to start")
+        CLI(net)
 
     client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
     server.cmd('tshark -i any -w out/server_' + str(number_of_paths) + '.pcap &')
     
-    if with_cli:
-        print("Experiment is ready to start... enter exit to start")
-        CLI(net)
 
     # iperf2 version
     # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
@@ -153,7 +154,7 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--number_of_subflows", help="The number of subflows")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
     parser.add_argument("-t", "--capture", help="capture packets", default=False)
-    parser.add_argument("-c", "--cli", help="Waiting in command line interface", default=False)
+    parser.add_argument("-c", "--cli", action="store_true", help="Waiting in command line interface", default=False)
     parser.add_argument("-l", "--loss", help="Loss rate", default=0)
     args = parser.parse_args()
     

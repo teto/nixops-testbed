@@ -26,8 +26,6 @@ fi
 
 echo "starting mn_test"
 
-# nix-shell -p 'python.withPackages(ps:[ps.mininet-python])' --command \
-	# 'python /home/teto/testbed/mn_test.py -n2'
 
 /home/teto/testbed/mn_test.py -n2
 
