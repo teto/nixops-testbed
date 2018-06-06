@@ -1,5 +1,10 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell -p 'python.withPackages(ps:[ps.mininet-python])' -i python
+#!nix-shell shell-mininet.nix -i python --show-trace
+
+# python needs to read this 
+# -*- coding: utf-8 -*-
+# but it will check just the first 2 lines :/ https://www.python.org/dev/peps/pep-0263/#defining-the-encoding
+
 # todo add python ?
 """
 derived from mininet_progmp_helper.py
@@ -26,7 +31,6 @@ from mininet.log import setLogLevel, info
 dataAmount = "10M"
 
 # can get parameters from 
-# Chan, M. C., & Ramjee, R. (2005). TCP/IP performance over 3G wireless links with rate and delay variation. Wireless Networks, 11(1–2), 81–97. https://doi.org/10.1007/s11276-004-4748-7
 
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
@@ -127,8 +131,9 @@ def runExperiment(number_of_paths, with_cli, loss):
 
     # flent version
     # flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
-    server.cmd('netserver -D > out/server_' + str(number_of_paths) + '.log &')
-    client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
+    server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
+    # TODO test manually first 
+    # client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
 
     if with_cli:
         print ("Experiment finished... enter exit to finish")

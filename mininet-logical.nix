@@ -40,6 +40,7 @@ let
 
   environment.systemPackages = with pkgs; [
     flent # https://flent.org/intro.html#quick-start
+    owamp
     netperf
     tshark
     python
@@ -71,6 +72,7 @@ let
 
   system.nixos.stateVersion = "18.03";
 
+  services.owamp.enable = true;
 
   nix = {
   # otherwise nix-shell won't work

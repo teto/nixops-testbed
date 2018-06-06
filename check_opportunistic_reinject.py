@@ -1,7 +1,10 @@
+#!/usr/bin/env nix-shell 
+#!nix-shell /home/teto/testbed/check.nix -i python
+
+
 # Copyright (c) PLUMgrid, Inc.
 # Licensed under the Apache License, Version 2.0 (the "License")
-#!/usr/bin/env nix-shell 
-#!nix-shell -p python '( linuxPackagesFor mptcp-local-stable ).bcc' mptcp-local-stable.dev -i python
+# nix-shell -p python '( linuxPackagesFor mptcp-local-stable ).bcc' mptcp-local-stable.dev -i python
 
 # run in project examples directory with:
 # sudo ./hello_world.py"
