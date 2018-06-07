@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env nix-shell 
+#!nix-shell shell-plot.nix -i python
 
 import pandas as pd
 import matplotlib.pyplot as plt

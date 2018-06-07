@@ -40,15 +40,16 @@ topoWireLessHetero = [
     { 'bw': 8, 'delay': "20ms", "loss": 20},
 ]
 
-forward={ 'bw': 10, 'delay': "20ms", "loss": 1}
-backward={ 'bw': 90, 'delay': "20ms", "loss": 1}
+forward={ 'delay': "10ms"}
+backward={ 'delay': "50ms"}
 
 topo = [
     # loss is in percoutage
-    { 'bw': 5, 'delay': "20ms", "loss": 1, "max_queue_size":1000, "use_htb": True, 
+    # 'delay': "20ms",
+    { 'bw': 5,  "loss": 1, "max_queue_size":1000, "use_htb": True, 
         'params1': forward, 'params2': backward
     },
-    { 'bw': 5, 'delay': "20ms", "loss": 20},
+    # { 'bw': 5, 'delay': "20ms", "loss": 20},
 ]
 
 # So with AsymTCLink one can use
@@ -112,6 +113,7 @@ def runExperiment(number_of_paths, with_cli, loss):
 
     if with_cli:
         print("Experiment is ready to start... enter exit to start")
+        print("client ping 10.0.0.2 -c 4")
         CLI(net)
 
     client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
