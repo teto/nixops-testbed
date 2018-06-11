@@ -93,7 +93,7 @@ def plot_reinjections(filename):
 # style='.-'
         def _get_type(idx):
 
-            l = ["TLP", "RTO", "OPPORTUNISTIC" ]
+            l = ["TLP", "RTO", "OPPORTUNISTIC", "OPPORTUNISTIC_WITH_PENALTY" ]
             return l[idx]
 
         legend_artists = []

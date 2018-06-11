@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell /home/teto/testbed/check.nix -i python
+#!nix-shell /home/teto/testbed/shell-check.nix -i python
 
 
 # Copyright (c) PLUMgrid, Inc.
@@ -24,6 +24,7 @@ parser = argparse.ArgumentParser(
     )
 
 parser.add_argument("-j", "--csv", action="store_true", help="just print fields: comma-separated values")
+parser.add_argument("-m", "--monitor-reinject-queue", action="store_true", help="just print fields: comma-separated values")
 
 args = parser.parse_args()
 
@@ -33,6 +34,10 @@ args = parser.parse_args()
 # just look at __mptcp_reinject_data call
 
 # reference API at https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md
+# look into BPF_PERF_MAP
+# use bpf_probe_read to extract values of
+# TODO one can use PT_REGS_PARM1 to see 
+# TP_DATA_LOC_READ_CONST ? defined https://github.com/iovisor/bcc/blob/c817cfd60ca42e97555c9cb1b076b01e3fa138a8/src/cc/export/helpers.h#L713
 prog = """
 #include <uapi/linux/ptrace.h>
 #include <net/sock.h>
@@ -47,32 +52,39 @@ struct reinjection_event {
 	u64 ts;
 	u32 event; // type ?
 };
+
 enum EVENT_TYPE {
 TLP = 0,
 TIMEOUT,
-OPPORTUNISTIC  
+OPPORTUNISTIC,
+OPPORTUNISTIC_WITH_PENALTY 
 };
 
-/* if the result is not null then we have an opportunistic reinjection */
-int check_ret(struct pt_regs *ctx) {
+
+
+int check_effective_reinjections(struct pt_regs *ctx) {
     struct reinjection_event data = {};
     int  ret = 0;
 
-    /* ret is struct sk_buff * */
+    /* we modified mptcp_skb_entail to return different values depending on 
+     * return 10 + reinject; if not using fastest path
+     * return 3 + reinject; in case of reinjection
+     * 1 means a correct transmissions
+    */
     int rawret  = PT_REGS_RC(ctx);
-    // struct sk_buff *skb
+    int reinject = (int)PT_REGS_PARM2(ctx);
 
-    //    bpf_trace_printk("Hello, World!\\n");
 
-    ret = (rawret != 0) + 1;
+    ret = rawret;
     dist.increment( ret );
 
-    // int perf_submit((void *)ctx, (void *)data, u32 data_size ) returns 0 on success
-    data.event = ret;
-    data.res = OPPORTUNISTIC;
+    data.event = reinject;
+
+    data.res = res;
     data.ts = bpf_ktime_get_ns();
     events.perf_submit(ctx, &data, sizeof(data));
     return rawret;
+
 }
 
 
@@ -92,6 +104,32 @@ int record_event(struct pt_regs *ctx) {
 
 """
 
+
+
+check_chosen = """
+/* if the result is not null then we have an opportunistic reinjection */
+int check_chosen_reinjections(struct pt_regs *ctx) {
+    struct reinjection_event data = {};
+    int  ret = 0;
+
+    /* ret is struct sk_buff * */
+    int rawret  = PT_REGS_RC(ctx);
+    // TODO use PT_REGS_PARM1 to find out if reinject is set
+    // struct sk_buff *skb
+    int *reinject = (int *)PT_REGS_PARM2(ctx);
+
+    ret = rawret;
+    dist.increment( ret );
+
+    // int perf_submit((void *)ctx, (void *)data, u32 data_size ) returns 0 on success
+    data.event = ret;
+    data.res = (*reinject == 1) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY;
+    data.ts = bpf_ktime_get_ns();
+    events.perf_submit(ctx, &data, sizeof(data));
+    return rawret;
+}
+"""
+
 # define output data structure in Python
 TASK_COMM_LEN = 16    # linux/sched.h
 class Data(ct.Structure):
@@ -103,11 +141,13 @@ class Data(ct.Structure):
 b = BPF(text=prog)
 
 
-ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_ret")
+# that's the one we should hook
+ret = b.attach_kretprobe(event="mptcp_skb_entail" , fn_name="check_effective_reinjections")
 
 # mptcp_meta_retransmit_timer
-ret = b.attach_kretprobe(event="mptcp_retransmit_skb" , fn_name="record_event")
-ret = b.attach_kretprobe(event="mptcp_sub_send_loss_probe" , fn_name="record_event")
+ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_chosen_reinjections")
+
+
 # ret = b.attach_kretprobe(event="tcp_v4_connect" , fn_name="check_ret")
 # print ("returned value of attach: %r" % ret)
 # header
@@ -129,6 +169,10 @@ def print_event(cpu, data, size):
 
 if args.csv:
     print("EventType,Timestamp,reinject")
+
+# if args.monitor_reinject_queue:
+#     ret = b.attach_kretprobe(event="mptcp_retransmit_skb" , fn_name="record_event")
+#     ret = b.attach_kretprobe(event="mptcp_sub_send_loss_probe" , fn_name="record_event")
 
 # loop with callback to print_event
 b["events"].open_perf_buffer(print_event)
