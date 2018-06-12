@@ -1,5 +1,5 @@
-#!/usr/bin/env nix-shell 
-#!nix-shell /home/teto/testbed/shell-check.nix -i python
+#! /usr/bin/env nix-shell 
+#! nix-shell /home/teto/testbed/shell-check.nix -i python
 
 
 # Copyright (c) PLUMgrid, Inc.

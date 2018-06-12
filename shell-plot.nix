@@ -1,13 +1,15 @@
-# with import <nixpkgs> {};
+with import <nixpkgs> {};
 
-# runCommand "dummy2" {
-#   buildInputs = with python3Packages; [
-#     pandas 
-#     # we want gtk because qt is so annying on nixos
-#     (matplotlib.override { enableGtk3=true;})
-#     pyqt5
-# ]; 
-# } ""
+# runCommand "dummy42" { buildInputs = [ (python3.withPackages(ps: with ps;[ pandas])) ]; } ""
+
+runCommand "dummy2" {
+  buildInputs = with python3Packages; [
+    pandas 
+    # we want gtk because qt is so annying on nixos
+    (matplotlib.override { enableGtk3=true;})
+    # pyqt5
+]; 
+} ""
 
   # pkgs.python3Packages.callPackage ./default.nix {}
 # # marche:
@@ -28,5 +30,5 @@
 #   pyEnv.env
 
 # c le seul truc qui marche
-{ pkgs ? import <nixpkgs> {} }:
-pkgs.python3Packages.callPackage ./default.nix {}
+# { pkgs ? import <nixpkgs> {} }:
+# pkgs.python3Packages.callPackage ./random.nix {}

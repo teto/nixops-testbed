@@ -15,17 +15,18 @@ buildPythonApplication rec {
 	pname = "test";
 	version = "0.1";
 
-    src = ./.;
+    # src = ./.;
 
     doCheck = false;
 
     # to build the doc sphinx
-    propagatedBuildInputs = [ pandas 
-    # we want gtk because qt is so annying on nixos
-    # matplotlib
-    (matplotlib.override { enableGtk3=true;})
-    pyqt5
-    tshark 
+    propagatedBuildInputs = [ 
+      pandas 
+      # we want gtk because qt is so annying on nixos
+      # matplotlib
+      (matplotlib.override { enableGtk3=true;})
+      pyqt5
+      tshark 
     ];
 
     meta = with stdenv.lib; {
