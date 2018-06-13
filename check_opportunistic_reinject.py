@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(
     )
 
 parser.add_argument("-j", "--csv", action="store_true", help="just print fields: comma-separated values")
-parser.add_argument("-m", "--monitor-reinject-queue", action="store_true", help="just print fields: comma-separated values")
+parser.add_argument("-m", "--monitor-reinject-queue", action="store_true", default=True, help="just print fields: comma-separated values")
 
 args = parser.parse_args()
 
@@ -80,7 +80,7 @@ int check_effective_reinjections(struct pt_regs *ctx) {
 
     data.event = reinject;
 
-    data.res = res;
+    data.res = ret;
     data.ts = bpf_ktime_get_ns();
     events.perf_submit(ctx, &data, sizeof(data));
     return rawret;
@@ -106,6 +106,10 @@ int record_event(struct pt_regs *ctx) {
 
 
 
+# HINT: The invalid mem access 'inv' error can happen if you try to dereference memory without first using bpf_probe_read() to copy it to the BPF stack. Sometimes the bpf_probe_read is automatic by the bcc rewriter, other times you'll need to be explicit.
+
+# attached to 
+# static struct sk_buff *mptcp_rcv_buf_optimization(struct sock *sk, int penal)
 check_chosen = """
 /* if the result is not null then we have an opportunistic reinjection */
 int check_chosen_reinjections(struct pt_regs *ctx) {
@@ -116,14 +120,16 @@ int check_chosen_reinjections(struct pt_regs *ctx) {
     int rawret  = PT_REGS_RC(ctx);
     // TODO use PT_REGS_PARM1 to find out if reinject is set
     // struct sk_buff *skb
-    int *reinject = (int *)PT_REGS_PARM2(ctx);
+    int penalty = -42;
 
+    // example from the doc https://github.com/iovisor/bcc/blob/master/docs/reference_guide.md#4-uprobes
+    bpf_probe_read(&penalty, sizeof(penalty), (void *)PT_REGS_PARM2(ctx));
     ret = rawret;
     dist.increment( ret );
 
     // int perf_submit((void *)ctx, (void *)data, u32 data_size ) returns 0 on success
     data.event = ret;
-    data.res = (*reinject == 1) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY;
+    data.res = (penalty) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY;
     data.ts = bpf_ktime_get_ns();
     events.perf_submit(ctx, &data, sizeof(data));
     return rawret;
@@ -138,14 +144,21 @@ class Data(ct.Structure):
                 ("type", ct.c_ulonglong),
                 ]
 
+
+if args.monitor_reinject_queue:
+    prog += check_chosen
+
+
 b = BPF(text=prog)
 
 
 # that's the one we should hook
+
 ret = b.attach_kretprobe(event="mptcp_skb_entail" , fn_name="check_effective_reinjections")
 
 # mptcp_meta_retransmit_timer
-ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_chosen_reinjections")
+if args.monitor_reinject_queue:
+    ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_chosen_reinjections")
 
 
 # ret = b.attach_kretprobe(event="tcp_v4_connect" , fn_name="check_ret")

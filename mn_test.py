@@ -79,7 +79,7 @@ class StaticTopo(Topo):
 
 
 
-def runExperiment(number_of_paths, with_cli, loss):
+def runExperiment(number_of_paths, interactive, test, loss, **kwargs):
     # using 
     net = Mininet(topo=StaticTopo(number_of_paths, loss), link=AsymTCLink)
     net.start()
@@ -111,13 +111,15 @@ def runExperiment(number_of_paths, with_cli, loss):
     # client owping 10.0.0.2 -c 4 -A A
     # server owampd -U owamp -R . -d /tmp -v -a A
 
-    if with_cli:
+    if interactive:
         print("Experiment is ready to start... enter exit to start")
         print("client ping 10.0.0.2 -c 4")
         CLI(net)
 
-    client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
-    server.cmd('tshark -i any -w out/server_' + str(number_of_paths) + '.pcap &')
+    if kwargs.get("capture"):
+        print("Capturing packets...")
+        client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
+        server.cmd('tshark -i any -w out/server_' + str(number_of_paths) + '.pcap &')
     
 
     # iperf2 version
@@ -125,8 +127,13 @@ def runExperiment(number_of_paths, with_cli, loss):
     # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
 
     # # iperf 3 version
-    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+    if test:
+        server.cmd('iperf -s --json --logfile "out/server_' + str(number_of_paths) + '.log" &')
+        # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+        # TODO get results else it might get dirty
+        
+        res = client.cmd('/home/teto/testbed/gen_cpt.sh 10.0.0.2')
+        print("RES=%r" % res)
 
     # netperf version
     # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
@@ -134,11 +141,11 @@ def runExperiment(number_of_paths, with_cli, loss):
 
     # flent version
     # flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
-    server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
+    # server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
     # TODO test manually first 
     # client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
 
-    if with_cli:
+    if interactive:
         print ("Experiment finished... enter exit to finish")
         CLI(net)
     
@@ -155,10 +162,11 @@ if __name__ == '__main__':
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
     parser.add_argument("-n", "--number_of_subflows", help="The number of subflows")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
-    parser.add_argument("-t", "--capture", help="capture packets", default=False)
-    parser.add_argument("-c", "--cli", action="store_true", help="Waiting in command line interface", default=False)
-    parser.add_argument("-l", "--loss", help="Loss rate", default=0)
-    args = parser.parse_args()
+    parser.add_argument("-t", "--test", choices=["iperf3-cdf"], help="capture packets", default="iperf3-cdf")
+    parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
+    parser.add_argument("-i", "--interactive", action="store_true", help="Waiting in command line interface", default=False)
+    parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
+    args, unknown_args = parser.parse_known_args()
     
     setLogLevel(args.debug)
     
@@ -167,7 +175,7 @@ if __name__ == '__main__':
     # else:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=0')
 
-    os.system('sysctl -w net.mptcp.mptcp_enabled=1')
+    # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
     # we don't have their RBS scheduler
     # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
@@ -182,9 +190,11 @@ if __name__ == '__main__':
     else:
         number_of_paths = [1, 2, 3]
     
+
+    v = vars(args)
     for paths in number_of_paths:
         print("Running experiments with ", paths, "subflows")
-        runExperiment(paths, args.cli, args.loss)
+        runExperiment(paths, **v)
     
     # ProgMP.setDefaultScheduler("simple")
     # ProgMP.removeScheduler(schedulerName)

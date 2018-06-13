@@ -2,8 +2,9 @@
 #!nix-shell -p iperf3 -i bash
 
 
+HOST=$1
 NB_OF_RUNS=${2:-5}
-OUT_FOLDER=${1:-out}
+OUT_FOLDER=${3:-out}
 
 SIZE="1MB"
 
@@ -30,7 +31,7 @@ SIZE="1MB"
 
 
 # https://stackoverflow.com/questions/966020/how-to-produce-range-with-step-n-in-bash-generate-a-sequence-of-numbers-with-i
-set -x
+# set -x
 
 # if -
 mkdir -p "$OUT_FOLDER"
@@ -38,12 +39,17 @@ for (( COUNTER=0; COUNTER<= $NB_OF_RUNS; COUNTER+=1 )); do
     # echo coco $COUNTER
 	FILENAME="${OUT_FOLDER}/iperf_${SIZE}_run_${COUNTER}.json"
 
-	iperf3 -c 127.0.0.1 --json -n "$SIZE" --logfile "$FILENAME"
-	if [ $? -ne 0 ];
-	then 
-		echo "an error happened"
-	fi
+	set -x
+	iperf -c $HOST --json -n "$SIZE" --logfile "$FILENAME"
+	set +x
+
+	# if [ $? -ne 0 ];
+	# then 
+	# 	echo "an error happened"
+	# 	exit 1
+	# fi
 done
 
-set +x
+exit 0
+# set +x
 

@@ -39,29 +39,15 @@ def plot_completion_times(results):
     df = pd.Series(results)
     # df = results
 
-    # load all files in folder
-    # folder
-        
-
-    # with open(filename) as fd:
-    #     df = pd.read_csv(
-    #         fd,
-    #         comment='#',
-    #         # usecols = [ 'time', 'sowd_out', 'sowd_in'],
-    #         # nrows=40, # useful for debugging purpose
-    #     )
-
     fig = plt.figure()
     axes = fig.gca()
     # step histtype='step' to remove bars
-    df.hist(histtype='step', cumulative='True')
+    df.hist(histtype='step', cumulative=True, density=1)
     # axes.set_ylabel("success")
     # axes.set_xlabel("Time")
 
     # TODO move afterwards ?
     # df.set_index('time', inplace=True)
-
-
 
     plt.show()
 
