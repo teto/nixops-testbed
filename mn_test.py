@@ -79,7 +79,7 @@ class StaticTopo(Topo):
 
 
 
-def runExperiment(number_of_paths, interactive, test, loss, **kwargs):
+def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     # using 
     net = Mininet(topo=StaticTopo(number_of_paths, loss), link=AsymTCLink)
     net.start()
@@ -120,6 +120,8 @@ def runExperiment(number_of_paths, interactive, test, loss, **kwargs):
         print("Capturing packets...")
         client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
         server.cmd('tshark -i any -w out/server_' + str(number_of_paths) + '.pcap &')
+        # let tshark the time to setup itself
+        os.system("sleep 5")
     
 
     # iperf2 version
@@ -128,7 +130,7 @@ def runExperiment(number_of_paths, interactive, test, loss, **kwargs):
 
     # # iperf 3 version
     if test:
-        server.cmd('iperf3 -s --json --logfile "out/server_' + str(number_of_paths) + '.log" &')
+        server.cmd("iperf3 -s --json --logfile 'out/server_%d.log' &" % number_of_paths)
         # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
         # TODO get results else it might get dirty
         
@@ -166,9 +168,14 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
     parser.add_argument("-i", "--interactive", action="store_true", help="Waiting in command line interface", default=False)
     parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
+    parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
+    # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
+    # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
     args, unknown_args = parser.parse_known_args()
     
     setLogLevel(args.debug)
+
+    os.system("mkdir -p %s" % args.out)
     
     # if args.debug:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
