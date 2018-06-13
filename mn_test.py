@@ -128,7 +128,7 @@ def runExperiment(number_of_paths, interactive, test, loss, **kwargs):
 
     # # iperf 3 version
     if test:
-        server.cmd('iperf -s --json --logfile "out/server_' + str(number_of_paths) + '.log" &')
+        server.cmd('iperf3 -s --json --logfile "out/server_' + str(number_of_paths) + '.log" &')
         # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
         # TODO get results else it might get dirty
         

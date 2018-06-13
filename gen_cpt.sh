@@ -3,7 +3,7 @@
 
 
 HOST=$1
-NB_OF_RUNS=${2:-5}
+NB_OF_RUNS=${2:-1}
 OUT_FOLDER=${3:-out}
 
 SIZE="1MB"
@@ -40,14 +40,14 @@ for (( COUNTER=0; COUNTER<= $NB_OF_RUNS; COUNTER+=1 )); do
 	FILENAME="${OUT_FOLDER}/iperf_${SIZE}_run_${COUNTER}.json"
 
 	set -x
-	iperf -c $HOST --json -n "$SIZE" --logfile "$FILENAME"
+	iperf3 -c $HOST --json -n "$SIZE" --logfile "$FILENAME"
 	set +x
 
-	# if [ $? -ne 0 ];
-	# then 
-	# 	echo "an error happened"
-	# 	exit 1
-	# fi
+	if [ $? -ne 0 ];
+	then 
+		echo "an error happened"
+		exit 1
+	fi
 done
 
 exit 0
