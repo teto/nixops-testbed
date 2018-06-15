@@ -8,7 +8,7 @@
   main = { config, pkgs, ... }:  {
     deployment.targetEnv = "libvirtd";
     deployment.libvirtd = {
-      baseImageSize = 9; # GB
+      baseImageSize = 12; # GB
       memorySize = 2048; # MB
 
       # TODO keep for later

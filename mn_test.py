@@ -35,9 +35,9 @@ dataAmount = "10M"
 
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
-    { 'bw': 2, 'delay': "150ms", "loss": 1},
+    { 'bw': 1, 'delay': "150ms", "loss": 1},
     # fast wifi
-    { 'bw': 8, 'delay': "20ms", "loss": 20},
+    { 'bw': 4, 'delay': "20ms", "loss": 20},
 ]
 
 forward={ 'delay': "10ms"}
@@ -46,10 +46,10 @@ backward={ 'delay': "50ms"}
 topo = [
     # loss is in percoutage
     # 'delay': "20ms",
-    { 'bw': 5,  "loss": 1, "max_queue_size":1000, "use_htb": True, 
+    { 'bw': 2,  "loss": 1, "max_queue_size":1000, "use_htb": True, 
         'params1': forward, 'params2': backward
     },
-    # { 'bw': 5, 'delay': "20ms", "loss": 20},
+    { 'bw': 2, 'delay': "20ms", "loss": 20},
 ]
 
 # So with AsymTCLink one can use
@@ -118,6 +118,7 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
 
     if kwargs.get("capture"):
         print("Capturing packets...")
+        print('tshark -r out/client_2.pcap -z "conv,mptcp"')
         client.cmd('tshark -i any -w out/client_' + str(number_of_paths) + '.pcap &')
         server.cmd('tshark -i any -w out/server_' + str(number_of_paths) + '.pcap &')
         # let tshark the time to setup itself

@@ -6,7 +6,7 @@ HOST=$1
 NB_OF_RUNS=${2:-1}
 OUT_FOLDER=${3:-out}
 
-SIZE="1MB"
+SIZE="3MB"
 
 # IPERF2
 # -x, --reportexclude [CDMSV]
