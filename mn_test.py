@@ -15,6 +15,7 @@ import os
 import sys
 from time import sleep
 import argparse
+import signal
 # from progmp import ProgMP
 
 from mininet.cli import CLI
@@ -61,10 +62,17 @@ topo = [
 #               params1=par1,
 #               params2=par2)
 
+# clean sthg
+def sigint_handler(signum, frame):
+    print('Stop pressing the CTRL+C!')
+ 
+signal.signal(signal.SIGINT, sigint_handler)
 
 class StaticTopo(Topo):
     "Simple topo with 2 hosts and 'number_of_paths' paths"
     def build(self, number_of_paths = 2, loss = 0):
+        # If you need per-host private directories, you can specify them as options to Host, for example:
+        # h = Host( 'h1', privateDirs=[ '/some/directory' ] )
         client = self.addHost('client')
         server = self.addHost('server')
         
@@ -77,7 +85,8 @@ class StaticTopo(Topo):
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
             print("just for testing, link type = ", type(link2))
 
-
+# tests - {
+# };
 
 def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     # using 
@@ -129,15 +138,6 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
     # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
 
-    # # iperf 3 version
-    if test:
-        server.cmd("iperf3 -s --json --logfile 'out/server_%d.log' &" % number_of_paths)
-        # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
-        # TODO get results else it might get dirty
-        
-        res = client.cmd('/home/teto/testbed/gen_cpt.sh 10.0.0.2')
-        print("RES=%r" % res)
-
     # netperf version
     # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
     # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
@@ -148,6 +148,32 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     # TODO test manually first 
     # client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
 
+    # # iperf 3 version
+    server_iperf = server.popen("iperf3 -s --json --logfile 'out/server_%d.log' &" % number_of_paths)
+    client.cmd("iperf -c {serverIP} -n {dataAmount} -i 1 > out/client_{paths}.log".format(
+        # server.IP() should work ok
+        serverIP="10.0.0.2",
+        dataAmount="5M",
+        paths=number_of_paths
+    ))
+    # TODO get results else it might get dirty
+        
+    # run_tests()
+        # TODO move the loop to here
+    for run in range(4):
+
+        def _out(suffix):
+            return os.path.join(out, suffix)
+
+        
+        server.popen("/home/teto/testbed/check_opportunistic_reinject.py -j > %s", _out("check_%d.csv" % (run,)) )
+        client.waitOutput()
+        # server.kill("kill %while")
+
+        res = client.cmd('/home/teto/testbed/gen_cpt.sh 10.0.0.2')
+        print("RES=%r" % res)
+
+
     if interactive:
         print ("Experiment finished... enter exit to finish")
         CLI(net)
@@ -155,7 +181,8 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     # lets wait a moment
     sleep(3)
     # and ensure iperf is finished :-)
-    os.system('pkill -f \'iperf\'')
+    server.cmd("kill %d" % (server_iperf.pid,))
+    # os.system('pkill -f \'iperf\'')
     os.system('pkill -f \'tshark\'')
     net.stop()
     sleep(1)
