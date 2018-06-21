@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell -v /home/teto/testbed/shell-check.nix -i python -I nixpkgs=/home/teto/nixpkgs 
+#!nix-shell /home/teto/testbed/shell-check.nix -i python
 
 
 # Copyright (c) PLUMgrid, Inc.
@@ -50,6 +50,7 @@ BPF_PERF_OUTPUT(events);
 struct reinjection_event {
 	u32 res;
 	u64 ts;
+        u64 netns;
 	u32 event; // type ?
 };
 
@@ -59,6 +60,26 @@ TIMEOUT,
 OPPORTUNISTIC,
 OPPORTUNISTIC_WITH_PENALTY 
 };
+
+
+/* if the result is not null then we have an opportunistic reinjection */
+static int record_event(struct pt_regs *ctx, int ret, int eventType) {
+    struct reinjection_event data = {};
+
+    // record snd_una ? subflow it was lost ?
+    data.res = ret;
+    data.ts = bpf_ktime_get_ns();
+
+    // Get network namespace id, if kernel supports it
+    #ifdef CONFIG_NET_NS
+        // evt.netns = sk->__sk_common.skc_net.net->ns.inum;
+    #else
+        evt.netns = 0;
+    #endif
+    data.event = eventType;
+    events.perf_submit(ctx, &data, sizeof(data));
+    return PT_REGS_RC(ctx);;
+}
 
 
 
@@ -76,30 +97,11 @@ int check_effective_reinjections(struct pt_regs *ctx) {
 
 
     ret = rawret;
-    dist.increment( ret );
 
-    data.event = reinject;
-
-    data.res = ret;
-    data.ts = bpf_ktime_get_ns();
-    events.perf_submit(ctx, &data, sizeof(data));
+    record_event(ctx, ret, reinject);
     return rawret;
-
 }
 
-
-/* if the result is not null then we have an opportunistic reinjection */
-int record_event(struct pt_regs *ctx) {
-    struct reinjection_event data = {};
-
-    // record snd_una ? subflow it was lost ?
-    data.res = PT_REGS_RC(ctx);
-    data.ts = bpf_ktime_get_ns();
-
-    data.event = TLP;
-    events.perf_submit(ctx, &data, sizeof(data));
-    return PT_REGS_RC(ctx);;
-}
 
 
 """
@@ -113,25 +115,15 @@ int record_event(struct pt_regs *ctx) {
 check_chosen = """
 /* if the result is not null then we have an opportunistic reinjection */
 int check_chosen_reinjections(struct pt_regs *ctx) {
-    struct reinjection_event data = {};
-    int  ret = 0;
 
     /* ret is struct sk_buff * */
     int rawret  = PT_REGS_RC(ctx);
-    // TODO use PT_REGS_PARM1 to find out if reinject is set
-    // struct sk_buff *skb
     int penalty = -42;
 
     // example from the doc https://github.com/iovisor/bcc/blob/master/docs/reference_guide.md#4-uprobes
     bpf_probe_read(&penalty, sizeof(penalty), (void *)PT_REGS_PARM2(ctx));
-    ret = rawret;
-    dist.increment( ret );
 
-    // int perf_submit((void *)ctx, (void *)data, u32 data_size ) returns 0 on success
-    data.event = ret;
-    data.res = (penalty) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY;
-    data.ts = bpf_ktime_get_ns();
-    events.perf_submit(ctx, &data, sizeof(data));
+    record_event(ctx, (penalty) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY, rawret);
     return rawret;
 }
 """

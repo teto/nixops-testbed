@@ -18,6 +18,7 @@ import sys
 from time import sleep
 import argparse
 import signal
+import subprocess
 # from progmp import ProgMP
 
 from mininet.cli import CLI
@@ -172,7 +173,7 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     if server_iperf.returncode:
         print("Failed to run ", cmd)
         print("returned", server_iperf.returncode)
-        print(err)
+        # print(err)
         sys.exit(1)
 
     # server.cmd("iperf3 -s --json --logfile '%s' &" % _out("server_iperf", number_of_paths, ".log"))
@@ -186,8 +187,21 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         # in iperf3, the client sends the data so...
         reinject_out = _out("check", run, ".csv")
         print(reinject_out)
+
+        # sendCmd returns immediately while cmd waits for output
+        res = client.cmd("ls /sys")
+        res = client.cmd("mount -t debugfs none /sys/kernel/debug")
+        
+        print("mounting folder res :", res)
+        # res = client.cmd("ls /root")
+        # TODO problem is exec does not mount /sys/
+        # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
+        # print("kprobe_events :", res)
+        # res = client.cmd("cat /etc/mtab")
+        # print("mtab :", res)
         with open(reinject_out, "w+") as fd:
             client_check = client.popen(
+            # client_check = subprocess.Popen(
                 ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
                 stdout=fd,
                 universal_newlines=True
