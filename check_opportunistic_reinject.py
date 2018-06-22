@@ -15,6 +15,8 @@ from bcc import BPF
 from time import sleep, strftime
 import ctypes as ct
 import argparse
+import signal
+import sys
 
 
 # https://github.com/iovisor/bcc/blob/master/tools/ext4slower.py
@@ -26,12 +28,32 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-j", "--csv", action="store_true", help="just print fields: comma-separated values")
 parser.add_argument("-m", "--monitor-reinject-queue", action="store_true", default=True, help="just print fields: comma-separated values")
 
+
+def sigterm_handler(_signo, _stack_frame):
+    # else 
+    print("handler called")
+    sys.stdout.flush()
+ 
+
+# Make sure stdout buffer is flushed on these signals
+signal.signal(signal.SIGINT,  sigterm_handler)
+signal.signal(signal.SIGTERM, sigterm_handler)
+
+
+
+
+
 args = parser.parse_args()
 
 
 # TODO trace args = mptcp_meta_retransmit_timer
 # instrument mptcp_sub_send_loss_probe
 # just look at __mptcp_reinject_data call
+
+ #  Sets *@reinject to 1 if the returned segment comes from the
+ # reinject queue. Sets it to 0 if it is the regular send-head of the meta-sk,
+ # and sets it to -1 if it is a meta-level retransmission to optimize the
+ # receive-buffer, we should use 2 to distinguish with penatly
 
 # reference API at https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md
 # look into BPF_PERF_MAP
@@ -48,7 +70,7 @@ BPF_PERF_OUTPUT(events);
 
 // define output data structure in C
 struct reinjection_event {
-	u32 res;
+	u32 res;    // => successful or not
 	u64 ts;
         u64 netns;
 	u32 event; // type ?
@@ -57,26 +79,26 @@ struct reinjection_event {
 enum EVENT_TYPE {
 TLP = 0,
 TIMEOUT,
+REINJECT_QUEUE, // dunno if it is TLP or TIMEOUT
 OPPORTUNISTIC,
 OPPORTUNISTIC_WITH_PENALTY 
 };
 
 
 /* if the result is not null then we have an opportunistic reinjection */
-static int record_event(struct pt_regs *ctx, int ret, int eventType) {
+static int record_event(struct pt_regs *ctx, int res, int eventType) {
     struct reinjection_event data = {};
 
     // record snd_una ? subflow it was lost ?
-    data.res = ret;
+    data.res = res;
+    data.event = eventType;
     data.ts = bpf_ktime_get_ns();
+    data.netns = 0;
 
     // Get network namespace id, if kernel supports it
     #ifdef CONFIG_NET_NS
-        // evt.netns = sk->__sk_common.skc_net.net->ns.inum;
-    #else
-        evt.netns = 0;
+        // data.netns = sk->__sk_common.skc_net.net->ns.inum;
     #endif
-    data.event = eventType;
     events.perf_submit(ctx, &data, sizeof(data));
     return PT_REGS_RC(ctx);;
 }
@@ -94,11 +116,22 @@ int check_effective_reinjections(struct pt_regs *ctx) {
     */
     int rawret  = PT_REGS_RC(ctx);
     int reinject = (int)PT_REGS_PARM2(ctx);
+    int type = 0;
 
 
     ret = rawret;
 
-    record_event(ctx, ret, reinject);
+    // la ca merde
+    if (reinject < 0) {
+        type = OPPORTUNISTIC;
+    } else if (reinject > 0) {
+        type = REINJECT_QUEUE;
+    } else {
+        // not a reinjection; skip it
+        return rawret;
+    }
+    
+    record_event(ctx, ret, type);
     return rawret;
 }
 
@@ -123,7 +156,7 @@ int check_chosen_reinjections(struct pt_regs *ctx) {
     // example from the doc https://github.com/iovisor/bcc/blob/master/docs/reference_guide.md#4-uprobes
     bpf_probe_read(&penalty, sizeof(penalty), (void *)PT_REGS_PARM2(ctx));
 
-    record_event(ctx, (penalty) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY, rawret);
+    record_event(ctx, rawret != 0, (penalty) ? OPPORTUNISTIC : OPPORTUNISTIC_WITH_PENALTY);
     return rawret;
 }
 """
@@ -131,9 +164,10 @@ int check_chosen_reinjections(struct pt_regs *ctx) {
 # define output data structure in Python
 TASK_COMM_LEN = 16    # linux/sched.h
 class Data(ct.Structure):
-    _fields_ = [("res", ct.c_ulonglong),
+    _fields_ = [("res", ct.c_uint),
                 ("ts", ct.c_ulonglong),
-                ("type", ct.c_ulonglong),
+                ("netns", ct.c_ulonglong),
+                ("type", ct.c_uint),
                 ]
 
 
@@ -146,10 +180,13 @@ b = BPF(text=prog)
 
 # that's the one we should hook
 
+# static int mptcp_skb_entail(struct sock *sk, struct sk_buff *skb, int reinject)
 ret = b.attach_kretprobe(event="mptcp_skb_entail" , fn_name="check_effective_reinjections")
 
 # mptcp_meta_retransmit_timer
 if args.monitor_reinject_queue:
+    # has prototype
+    # static struct sk_buff *mptcp_rcv_buf_optimization(struct sock *sk, int penal)
     ret = b.attach_kretprobe(event="mptcp_rcv_buf_optimization" , fn_name="check_chosen_reinjections")
 
 
@@ -165,7 +202,7 @@ if args.monitor_reinject_queue:
 def print_event(cpu, data, size):
     event = ct.cast(data, ct.POINTER(Data)).contents
     if args.csv:
-        print("%d,%d,%d" % (event.type, event.ts, event.res, ))
+        print("%u,%u,%u,%u" % (event.type, event.ts, event.netns, event.res, ))
     else:
         print("Reinject ? ts %d => %d" % (event.ts, event.res,))
 
@@ -173,7 +210,7 @@ def print_event(cpu, data, size):
 
 
 if args.csv:
-    print("EventType,Timestamp,reinject")
+    print("EventType,timestamp,namespace,reinject")
 
 # if args.monitor_reinject_queue:
 #     ret = b.attach_kretprobe(event="mptcp_retransmit_skb" , fn_name="record_event")

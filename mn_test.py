@@ -26,6 +26,7 @@ from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.link import TCLink, AsymTCLink
 from mininet.log import setLogLevel, info
+import mininet
 
 # look for __mptcp_reinject_data call
 # [   63.813460] acking on fast path, looking for best sock 
@@ -93,6 +94,15 @@ class StaticTopo(Topo):
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
             print("just for testing, link type = ", type(link2))
 
+
+class MptcpHost(mininet.net.Host):
+    # TODO mount
+    def __init__(self, name, **kwargs):
+
+        super(MptcpHost, self).__init__(name, **kwargs)
+        res = self.cmd("mount -t debugfs none /sys/kernel/debug")
+        print("HOST: res", res)
+
 # tests - {
 # };
 
@@ -104,7 +114,11 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         return os.path.join(out, suffix )
 
     # using 
-    net = Mininet(topo=StaticTopo(number_of_paths, loss), link=AsymTCLink)
+    net = Mininet(
+        topo=StaticTopo(number_of_paths, loss), 
+        link=AsymTCLink,
+        host=MptcpHost
+    )
     net.start()
     client = net.get('client')
     server = net.get('server')
@@ -144,8 +158,8 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         print("Capturing packets...")
         print('tshark -r out/client_2.pcap -z "conv,mptcp"')
         # TODO use popen instead ?
-        client.cmd("tshark -i any -w '%s' &" % _out("client_", number_of_paths, ".pcap"))
-        server.cmd("tshark -i any -w '%s' &" % _out("server_", number_of_paths, ".pcap"))
+        client.sendCmd("tshark -i any -w '%s' " % _out("client_", number_of_paths, ".pcap"))
+        server.sendCmd("tshark -i any -w '%s' " % _out("server_", number_of_paths, ".pcap"))
         # let tshark the time to setup itself
         os.system("sleep 5")
     
@@ -182,17 +196,17 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         
     # run_tests()
     # TODO move the loop to here
-    for run in range(4):
+    for run in range(kwargs.get("runs", 1)):
 
         # in iperf3, the client sends the data so...
         reinject_out = _out("check", run, ".csv")
         print(reinject_out)
 
         # sendCmd returns immediately while cmd waits for output
-        res = client.cmd("ls /sys")
-        res = client.cmd("mount -t debugfs none /sys/kernel/debug")
+        # res = client.cmd("ls /sys")
+        # res = client.cmd("mount -t debugfs none /sys/kernel/debug")
         
-        print("mounting folder res :", res)
+        # print("mounting folder res :", res)
         # res = client.cmd("ls /root")
         # TODO problem is exec does not mount /sys/
         # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
@@ -200,37 +214,46 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         # res = client.cmd("cat /etc/mtab")
         # print("mtab :", res)
         with open(reinject_out, "w+") as fd:
+            print("launch check_reinject ")
             client_check = client.popen(
             # client_check = subprocess.Popen(
                 ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
                 stdout=fd,
                 universal_newlines=True
             )
-            out, err = client_check.communicate()
+            # out, err = client_check.communicate()
+            print("launched check_reinject ")
 
-            if err is not None:
-                print("Failed running with returncode=", client_check.returncode)
-                print(err)
-                break
+            # if err is not None:
+            #     print("Failed running with returncode=", client_check.returncode)
+            #     print(err)
+            #     break
+
             # assert err == 0
 
-            client_iperf = client.popen("iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
+            cmd = "iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
             # client.cmd("iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
                 serverIP=server.IP(),   # seems to work
                 # serverIP="10.0.0.2",
                 dataAmount="5M",
                 # paths=number_of_paths
                 logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
-            ))
-            # wait for iperf to finish
-            client_iperf.wait()
+            )
+
+            client.cmd(cmd)
+
+            # client_iperf = client.popen(cmd)
+            # # wait for iperf to finish
+            # print("waiting for client iperf ")
+            # client_iperf.wait()
             # client.waitOutput()
 
             # if client_check.returncode:
-            print("out/errs=", out, err)
-            print("returncode=", client_iperf.returncode)
-            # client.cmd("kill %d" % (client_check.pid,))
-            client_check.kill()
+            # print("out/errs=", out, err)
+            # print("returncode=", client_iperf.returncode)
+            # # client.cmd("kill %d" % (client_check.pid,))
+
+            client_check.terminate()
         
         # res = client.cmd('/home/teto/testbed/gen_cpt.sh 10.0.0.2')
         # print("RES=%r" % res)
@@ -251,7 +274,7 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         os.system('pkill -f \'tshark\'')
 
     net.stop()
-    sleep(1)
+    # sleep(1)
   
 if __name__ == '__main__':
 
@@ -265,6 +288,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--interactive", action="store_true", help="Waiting in command line interface", default=False)
     parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
+    parser.add_argument("--runs", action="store", default=1, help="Number of runs")
     # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
     # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
     args, unknown_args = parser.parse_known_args()
