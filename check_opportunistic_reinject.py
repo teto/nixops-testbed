@@ -31,7 +31,7 @@ parser.add_argument("-m", "--monitor-reinject-queue", action="store_true", defau
 
 def sigterm_handler(_signo, _stack_frame):
     # else 
-    print("handler called")
+    # print("handler called")
     sys.stdout.flush()
  
 

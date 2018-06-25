@@ -48,6 +48,11 @@
         </filesystem>
       '';
     };
+    # add entry for fs ?
+        # <filesystem type='mount' accessmode='passthrough'>
+        #     <source dir='/home/teto/out'/>
+        #     <target dir='xp'/>
+        # </filesystem>
 
 
     networking.firewall.enable = false;

@@ -26,15 +26,33 @@ from mininet.topo import Topo
 from mininet.net import Mininet
 from mininet.link import TCLink, AsymTCLink
 from mininet.log import setLogLevel, info
+from mininet.util import pmonitor
 import mininet
+import functools
 
 # look for __mptcp_reinject_data call
 # [   63.813460] acking on fast path, looking for best sock 
 # [   63.813461] Looking for fastest path
 
+    # iperf2 version
+    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+
+    # netperf version
+    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+
+    # flent version
+    # flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
+    # server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
+    # TODO test manually first 
+    # client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
+
+    # try:
+
 # todo make it so that we just have to unpack the parameter
 
-dataAmount = "10M"
+dataAmount = "5M"
 
 # can get parameters from 
 
@@ -66,6 +84,13 @@ topo = [
 #               params1=par1,
 #               params2=par2)
 
+
+
+def _gout(out, *args):
+    """ Use it to name files"""
+    suffix = '_'.join(map(str, args))
+    return os.path.join(out, suffix )
+
 net = None
 
 # clean sthg
@@ -75,7 +100,7 @@ def sigint_handler(signum, frame):
     net.stop()
     sys.exit(3)
 
-signal.signal(signal.SIGINT, sigint_handler)
+# signal.signal(signal.SIGINT, sigint_handler)
 
 class StaticTopo(Topo):
     "Simple topo with 2 hosts and 'number_of_paths' paths"
@@ -96,24 +121,120 @@ class StaticTopo(Topo):
 
 
 class MptcpHost(mininet.net.Host):
-    # TODO mount
+    """
+    mounts debugfs so that bcc works
+    """
     def __init__(self, name, **kwargs):
 
         super(MptcpHost, self).__init__(name, **kwargs)
         res = self.cmd("mount -t debugfs none /sys/kernel/debug")
         print("HOST: res", res)
 
-# tests - {
-# };
 
-def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
+def runSingleExperiment(run, client, server, out, **kwargs):
+    # in iperf3, the client sends the data so...
 
-    def _out(*args):
-        """ Use it to name files"""
-        suffix = '_'.join(map(str, args))
-        return os.path.join(out, suffix )
+    _out = functools.partial(_gout, out)
+
+    reinject_out = _out("check", run, ".csv")
+    number_of_paths = kwargs.get('number_of_paths')
+    print(reinject_out)
+
+    # sendCmd returns immediately while cmd waits for output
+    # res = client.cmd("ls /sys")
+    # res = client.cmd("mount -t debugfs none /sys/kernel/debug")
+    
+    # print("mounting folder res :", res)
+    # res = client.cmd("ls /root")
+    # TODO problem is exec does not mount /sys/
+    # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
+    # print("kprobe_events :", res)
+    # res = client.cmd("cat /etc/mtab")
+    # print("mtab :", res)
+    try: 
+        # iperf 3 version
+        cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
+        print("starting", cmd)
+        server_iperf = server.popen(cmd)
+        # out, err = server_iperf.communicate()
+        # if err is not None:
+        if server_iperf.returncode:
+            print("Failed to run ", cmd)
+            print("returned", server_iperf.returncode)
+            # print(err)
+            sys.exit(1)
+
+        # server.cmd("iperf3 -s --json --logfile '%s' &" % _out("server_iperf", number_of_paths, ".log"))
+        # server_iperf.poll()
+        # TODO get results else it might get dirty
+        with open(reinject_out, "w+") as fd:
+            print("launch check_reinject ")
+            client_check = client.popen(
+            # client_check = subprocess.Popen(
+                ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
+                # might be a problem
+                stdout=fd,
+                universal_newlines=True,
+                bufsize=0
+            )
+            # out, err = client_check.communicate()
+            print("launched check_reinject ")
+
+            # if err is not None:
+            #     print("Failed running with returncode=", client_check.returncode)
+            #     print(err)
+            #     break
+
+            # assert err == 0
+
+            cmd = "iperf3 -c {serverIP} -n {dataAmount} --json --logfile={logfile} ".format(
+            # client.cmd("iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
+                serverIP=server.IP(),   # seems to work
+                # serverIP="10.0.0.2",
+                dataAmount=dataAmount,
+                # paths=number_of_paths
+                logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
+            )
+
+            # client.cmd(cmd)
+
+            client_iperf = client.popen(cmd) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            print("communicate for client iperf ")
+
+            # out, err = client_iperf.communicate()
+            # # wait for iperf to finish
+            print("waiting for client iperf ")
+            # print(out)
+            # print(err)
+            client_iperf.wait()
+            # client.waitOutput()
+
+            # if client_check.returncode:
+            # print("out/errs=", out, err)
+            # print("returncode=", client_iperf.returncode)
+            # # client.cmd("kill %d" % (client_check.pid,))
+            print("terminating client iperf")
+
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+
+    finally:
+        print("finally")
+        if client_iperf.returncode is None:
+            client_iperf.terminate()
+        if client_check.returncode is None:
+            client_check.terminate()
+
+        server_iperf.terminate()
+
+def runExperiment(interactive, test, loss, **kwargs):
+
+    _out = functools.partial(_gout, kwargs.get('out'))
+    number_of_paths = kwargs.get('number_of_paths', 1)
 
     # using 
+    global net
     net = Mininet(
         topo=StaticTopo(number_of_paths, loss), 
         link=AsymTCLink,
@@ -158,107 +279,46 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
         print("Capturing packets...")
         print('tshark -r out/client_2.pcap -z "conv,mptcp"')
         # TODO use popen instead ?
-        client.sendCmd("tshark -i any -w '%s' " % _out("client_", number_of_paths, ".pcap"))
-        server.sendCmd("tshark -i any -w '%s' " % _out("server_", number_of_paths, ".pcap"))
+
+# nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
+# todo use dumpcap instead
+# dumpcap -q -w
+        cmd = ["dumpcap", "-i", "any", "-w", _out("client", number_of_paths, ".pcapng") ]
+        print("starting %s" % cmd)
+
+        print("CWD=", os.getcwd())
+        client_tshark = client.popen(cmd, universal_newlines=True,)
+        # out, err = client_tshark.communicate()
+        # print ( out, err)
+        # print ( client_tshark.returncode)
+        if client_tshark.returncode is not None:
+            print("failed")
+
+        cmd = ["dumpcap", "-i", "any", "-w", _out("server", number_of_paths, ".pcapng") ]
+        server_tshark = server.popen(cmd, universal_newlines=True,)
+        if server_tshark.returncode is not None:
+            print("failed")
+
         # let tshark the time to setup itself
         os.system("sleep 5")
     
 
-    # iperf2 version
-    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
-
-    # netperf version
-    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
-
-    # flent version
-    # flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
-    # server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
-    # TODO test manually first 
-    # client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
-
-    # # iperf 3 version
-    cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
-    print("starting", cmd)
-    server_iperf = server.popen(cmd)
-    # out, err = server_iperf.communicate()
-    # if err is not None:
-    if server_iperf.returncode:
-        print("Failed to run ", cmd)
-        print("returned", server_iperf.returncode)
-        # print(err)
-        sys.exit(1)
-
-    # server.cmd("iperf3 -s --json --logfile '%s' &" % _out("server_iperf", number_of_paths, ".log"))
-    # server_iperf.poll()
-    # TODO get results else it might get dirty
-        
+            
     # run_tests()
     # TODO move the loop to here
     for run in range(kwargs.get("runs", 1)):
+        runSingleExperiment(run, client, server, **kwargs)
 
-        # in iperf3, the client sends the data so...
-        reinject_out = _out("check", run, ".csv")
-        print(reinject_out)
+    if kwargs.get("capture"):
+        print("killing tshark")
+        print(" retcode ", client_tshark.returncode)
+        client_tshark.terminate()
+        print(" retcode ", client_tshark.returncode)
+        server_tshark.terminate()
+        # server_tshark.terminate()
+        # os.system('pkill -f \'tshark\'')
 
-        # sendCmd returns immediately while cmd waits for output
-        # res = client.cmd("ls /sys")
-        # res = client.cmd("mount -t debugfs none /sys/kernel/debug")
         
-        # print("mounting folder res :", res)
-        # res = client.cmd("ls /root")
-        # TODO problem is exec does not mount /sys/
-        # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
-        # print("kprobe_events :", res)
-        # res = client.cmd("cat /etc/mtab")
-        # print("mtab :", res)
-        with open(reinject_out, "w+") as fd:
-            print("launch check_reinject ")
-            client_check = client.popen(
-            # client_check = subprocess.Popen(
-                ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
-                stdout=fd,
-                universal_newlines=True
-            )
-            # out, err = client_check.communicate()
-            print("launched check_reinject ")
-
-            # if err is not None:
-            #     print("Failed running with returncode=", client_check.returncode)
-            #     print(err)
-            #     break
-
-            # assert err == 0
-
-            cmd = "iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
-            # client.cmd("iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
-                serverIP=server.IP(),   # seems to work
-                # serverIP="10.0.0.2",
-                dataAmount="5M",
-                # paths=number_of_paths
-                logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
-            )
-
-            client.cmd(cmd)
-
-            # client_iperf = client.popen(cmd)
-            # # wait for iperf to finish
-            # print("waiting for client iperf ")
-            # client_iperf.wait()
-            # client.waitOutput()
-
-            # if client_check.returncode:
-            # print("out/errs=", out, err)
-            # print("returncode=", client_iperf.returncode)
-            # # client.cmd("kill %d" % (client_check.pid,))
-
-            client_check.terminate()
-        
-        # res = client.cmd('/home/teto/testbed/gen_cpt.sh 10.0.0.2')
-        # print("RES=%r" % res)
-
-
     if interactive:
         print ("Experiment finished... enter exit to finish")
         CLI(net)
@@ -267,11 +327,9 @@ def runExperiment(number_of_paths, interactive, test, loss, out, **kwargs):
     sleep(3)
     # and ensure iperf is finished :-)
     # server.cmd("kill %d" % (server_iperf.pid,))
-    server_iperf.terminate()
+    # server_iperf.terminate()
     # os.system('pkill -f \'iperf\'')
 
-    if kwargs.get("capture"):
-        os.system('pkill -f \'tshark\'')
 
     net.stop()
     # sleep(1)
@@ -281,14 +339,14 @@ if __name__ == '__main__':
     print("To clean run `mn -c`")
     parser = argparse.ArgumentParser()
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
-    parser.add_argument("-n", "--number_of_subflows", help="The number of subflows")
+    parser.add_argument("-n", "--number-of-paths", type=int, default=2, help="The number of subflows")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
     parser.add_argument("-t", "--test", choices=["iperf3-cdf"], help="test to run", default="iperf3-cdf")
     parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
     parser.add_argument("-i", "--interactive", action="store_true", help="Waiting in command line interface", default=False)
     parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
-    parser.add_argument("--runs", action="store", default=1, help="Number of runs")
+    parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
     # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
     # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
     args, unknown_args = parser.parse_known_args()
@@ -314,16 +372,16 @@ if __name__ == '__main__':
     # TODO use iperf command instead
     os.system('sysctl -w net.ipv4.tcp_rmem="400000 400000 400000"')
     
-    if args.number_of_subflows:
-        number_of_paths = [int(args.number_of_subflows)]
-    else:
-        number_of_paths = [1, 2, 3]
+    # if args.number_of_subflows:
+    #     number_of_paths = [int(args.number_of_subflows)]
+    # else:
+    #     number_of_paths = [1, 2, 3]
     
 
     v = vars(args)
-    for paths in number_of_paths:
-        print("Running experiments with ", paths, "subflows")
-        runExperiment(paths, **v)
+    # for paths in number_of_paths:
+    #     print("Running experiments with ", paths, "subflows")
+    runExperiment(**v)
     
     # ProgMP.setDefaultScheduler("simple")
     # ProgMP.removeScheduler(schedulerName)

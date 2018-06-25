@@ -76,7 +76,7 @@ def plot_reinjections(filename):
         axes.set_xlabel("Time")
 
         # TODO move afterwards ?
-        df.set_index('Timestamp', inplace=True)
+        df.set_index('timestamp', inplace=True)
 
         # as_index=False
         grouped_by = df.groupby(by='EventType')
@@ -93,7 +93,7 @@ def plot_reinjections(filename):
 # style='.-'
         def _get_type(idx):
 
-            l = ["TLP", "RTO", "OPPORTUNISTIC", "OPPORTUNISTIC_WITH_PENALTY" ]
+            l = ["TLP", "RTO", "REINJECT_QUEUE", "OPPORTUNISTIC", "OPPORTUNISTIC_WITH_PENALTY" ]
             return l[idx]
 
         legend_artists = []
