@@ -28,7 +28,7 @@ import subprocess
 from mininet.cli import CLI
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.link import TCLink, AsymTCLink
+from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 from mininet.util import pmonitor
 import mininet
@@ -38,21 +38,21 @@ import functools
 # [   63.813460] acking on fast path, looking for best sock 
 # [   63.813461] Looking for fastest path
 
-    # iperf2 version
-    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+# iperf2 version
+# server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+# client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
 
-    # netperf version
-    # server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-    # client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
+# netperf version
+# server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
+# client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
 
-    # flent version
-    # flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
-    # server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
-    # TODO test manually first 
-    # client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
+# flent version
+# flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
+# server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
+# TODO test manually first 
+# client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')   
 
-    # try:
+# try:
 
 # todo make it so that we just have to unpack the parameter
 
@@ -70,7 +70,7 @@ topoWireLessHetero = [
 forward={ 'delay': "10ms"}
 backward={ 'delay': "50ms"}
 
-topo = [
+topoAsymetric = [
     # loss is in percoutage
     # 'delay': "20ms",
     { 'bw': 2,  "loss": 1, "max_queue_size":1000, "use_htb": True, 
@@ -78,6 +78,8 @@ topo = [
     },
     { 'bw': 2, 'delay': "20ms", "loss": 20},
 ]
+
+topo = topoWireLessHetero
 
 # So with AsymTCLink one can use
 # Link.__init__(self, node1, node2, port1=port1, port2=port2,
@@ -241,7 +243,8 @@ def runExperiment(interactive, test, loss, **kwargs):
     global net
     net = Mininet(
         topo=StaticTopo(number_of_paths, loss), 
-        link=AsymTCLink,
+        # link=mininet.link.AsymTCLink,
+        link=TCLink,
         host=MptcpHost
     )
     net.start()
