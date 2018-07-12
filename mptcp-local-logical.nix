@@ -65,7 +65,7 @@ let
         # /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix
         /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
-        /home/teto/dotfiles/nixpkgs/common-all.nix
+        /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
         # for now don't use it
@@ -137,6 +137,7 @@ let
       iperf
       iperf2
       netperf
+      ncdu
       tshark
     ];
 
