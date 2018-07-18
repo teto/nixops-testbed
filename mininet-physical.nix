@@ -15,7 +15,8 @@
       #  boot.consoleLogLevel=1
       cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 nokaslr tcp_probe.port=5201 tcp_probe.full=1";
       # # # x86_64 is a symlink towards x86
-      kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
+      # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
+      kernel="/home/teto/bzImage";
 
       # this is the default
       # networks = [ { source = "default"; type= "virtual"; } ];
@@ -38,15 +39,21 @@
             <source dir='/home/teto'/>
             <target dir='xp'/>
         </filesystem>
-        <filesystem type='mount' accessmode='passthrough'>
-            <source dir='/home/teto/mininet'/>
-            <target dir='mn'/>
-        </filesystem>
-        <filesystem type='mount' accessmode='passthrough'>
-            <source dir='/home/teto/nixpkgs'/>
-            <target dir='nixpkgs'/>
-        </filesystem>
       '';
+
+        # <filesystem type='mount' accessmode='passthrough'>
+        #     <source dir='/home/teto/mininet'/>
+        #     <target dir='mn'/>
+        # </filesystem>
+
+        # <filesystem type='mount' accessmode='passthrough'>
+        #     <source dir='/home/teto/frite'/>
+        #     <target dir='frite'/>
+        # </filesystem>
+        # <filesystem type='mount' accessmode='passthrough'>
+        #     <source dir='/home/teto/nixpkgs'/>
+        #     <target dir='nixpkgs'/>
+        # </filesystem>
     };
     # add entry for fs ?
         # <filesystem type='mount' accessmode='passthrough'>
@@ -60,18 +67,18 @@
      # might trump boot
      # nofail Do not report errors for this device if it does not exist
      # Mount points are created automatically if they don’t already exist.
-    fileSystems."/root/mininet" = {
-      device = "mn";
-      fsType = "9p";
-      options = [
-        # "uid=1000" 
-        # "trans=virtio"
-          # allow for it to be written
-          # TODO use users gid ? or create a teto one ?
-          #"gid=33" 
-          "nofail"
-        ];
-    };
+    #fileSystems."/root/mininet" = {
+    #  device = "mn";
+    #  fsType = "9p";
+    #  options = [
+    #    # "uid=1000" 
+    #    # "trans=virtio"
+    #      # allow for it to be written
+    #      # TODO use users gid ? or create a teto one ?
+    #      #"gid=33" 
+    #      "nofail"
+    #    ];
+    #};
     fileSystems."/home/teto" = {
       device = "xp";
       fsType = "9p";
@@ -81,11 +88,16 @@
         # "ro"
     ];
     };
-    fileSystems."/root/nixpkgs" = {
-      device = "nixpkgs";
-      fsType = "9p";
-      options = [ "nofail" ];
-    };
+    # fileSystems."/home/teto/frite" = {
+    #   device = "frite";
+    #   fsType = "9p";
+    #   options = [ "nofail" ];
+    # };
+    # fileSystems."/home/teto/nixpkgs" = {
+    #   device = "nixpkgs";
+    #   fsType = "9p";
+    #   options = [ "nofail" ];
+    # };
 
     # VIRTUALBOX config 
     #deployment.targetEnv = "virtualbox"; # section 2

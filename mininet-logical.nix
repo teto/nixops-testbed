@@ -32,7 +32,7 @@ let
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
-  # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-local-stable;
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
@@ -79,7 +79,7 @@ let
   # otherwise nix-shell won't work
     nixPath = [
           # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
-          "nixpkgs=/root/nixpkgs"
+          "nixpkgs=/home/teto/nixpkgs"
           "nixpkgs-overlays=/home/teto/dotfiles/nixpkgs/overlays"
           # "https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
     ];

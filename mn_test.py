@@ -183,8 +183,10 @@ def runSingleExperiment(run, client, server, out, **kwargs):
                 universal_newlines=True,
                 bufsize=0
             )
+            if client_check.returncode is not None:
+                print("failed to start ", client_check.returncode)
             # out, err = client_check.communicate()
-            print("launched check_reinject ")
+            print("launched check_reinject with pid", client_check.pid)
 
             # if err is not None:
             #     print("Failed running with returncode=", client_check.returncode)
@@ -344,6 +346,7 @@ def runExperiment(interactive, test, loss, **kwargs):
 if __name__ == '__main__':
 
     print("To clean run `mn -c`")
+    print("You might want to run `nix-serve  -p 8080`")
     parser = argparse.ArgumentParser()
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
     parser.add_argument("-n", "--number-of-paths", type=int, default=2, help="The number of subflows")
