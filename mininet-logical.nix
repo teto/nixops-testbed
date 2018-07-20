@@ -1,4 +1,7 @@
 # { multihomed ? false , ... }:
+# 
+# mount -o remount,rw /nix/store
+# chown -R root:root /nix/store
 let
   tpl = { config, pkgs, lib,  ... }:
   let
@@ -25,7 +28,12 @@ let
 
 
   boot.postBootCommands = ''
+    # after first deploy
     ln -s /dev/sda1 /dev/root
+
+    # eventually to work around https://github.com/NixOS/nixops/issues/931#issuecomment-385662909
+    mount -o remount,rw /nix/store
+    chown -R root:root /nix/store
   '';
 
   networking.firewall.enable = false;

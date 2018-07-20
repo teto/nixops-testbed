@@ -28,6 +28,15 @@
       # maybe I need to add a fileSystem ?
       # mount testlabel /testbed -t 9p -o trans=virtio
       # mount mnlabel /mininet -t 9p -o trans=virtio
+
+      # on passthrough modes http://rabexc.org/posts/p9-setup-in-libvirt
+      # mapped/passthrough/none
+      # mapped
+      # To have files created and accessed as the user running kvm/qemu. Uses extended attributes to store the original user credentials.
+      # passthrough
+      # To have files created and accessed as the user within kvm/qemu.
+      # none
+      # Like passthrough, except failures in privileged operations are ignored.
       extraDevicesXML = ''
         <serial type='pty'>
         <target port='0'/>
