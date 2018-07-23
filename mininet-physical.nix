@@ -50,11 +50,11 @@
         <console type='pty'>
         <target type='serial' port='0'/>
         </console>
-        <filesystem type='mount' accessmode='passthrough'>
+        <filesystem type='mount' accessmode='mapped'>
             <source dir='/home/teto/testbed'/>
             <target dir='mn'/>
         </filesystem>
-        <filesystem type='mount' accessmode='passthrough'>
+        <filesystem type='mount' accessmode='mapped'>
             <source dir='/home/teto/frite'/>
             <target dir='frite'/>
         </filesystem>
@@ -102,17 +102,18 @@
     fileSystems."/home/teto/testbed" = {
       device = "mn";
       fsType = "9p";
-      options = [ "nofail" ];
+      # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
+      options = [ "defaults" "nofail" "access=any" ];
     };
     fileSystems."/home/teto/frite" = {
       device = "frite";
       fsType = "9p";
-      options = [ "nofail" ];
+      options = [ "defaults" "nofail" ];
     };
     fileSystems."/home/teto/nixpkgs" = {
       device = "nixpkgs";
       fsType = "9p";
-      options = [ "nofail" ];
+      options = [ "defaults" "nofail" ];
     };
 
     # VIRTUALBOX config 

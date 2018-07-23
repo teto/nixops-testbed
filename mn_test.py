@@ -33,6 +33,7 @@ from mininet.log import setLogLevel, info
 from mininet.util import pmonitor
 import mininet
 import functools
+import logging
 
 # look for __mptcp_reinject_data call
 # [   63.813460] acking on fast path, looking for best sock 
@@ -183,7 +184,7 @@ def runSingleExperiment(run, client, server, out, **kwargs):
         with open(reinject_out, "w+") as fd:
 
             if check_reinject:
-                print("launch check_reinject ")
+                print("launch check_reinject")
                 client_check = client.popen(
                 # client_check = subprocess.Popen(
                     ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
@@ -235,10 +236,12 @@ def runSingleExperiment(run, client, server, out, **kwargs):
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
+    except Exception as e:
+        logging.error("ERROR %s" % e)
 
     finally:
         print("finally")
-        if client_iperf.returncode is None:
+        if client_iperf and client_iperf.returncode is None:
             client_iperf.terminate()
         if check_reinject and client_check.returncode is None:
             client_check.terminate()
@@ -328,7 +331,7 @@ def runExperiment(interactive, test, loss, **kwargs):
         runSingleExperiment(run, client, server, **kwargs)
 
     if kwargs.get("capture"):
-        print("killing tshark")
+        print("killing dumpcap")
         print(" retcode ", client_tshark.returncode)
         client_tshark.terminate()
         print(" retcode ", client_tshark.returncode)
