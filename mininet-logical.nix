@@ -52,6 +52,8 @@ let
     ethtool # needed
     netperf
     tshark
+    home-manager
+    tcpdump
     python
     (linuxPackagesFor pkgs.mptcp-local-stable).bcc
     mptcp-local-stable.dev
@@ -83,12 +85,13 @@ let
 
   services.owamp.enable = true;
 
+
   nix = {
   # otherwise nix-shell won't work
     nixPath = [
           # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
           "nixpkgs=/home/teto/nixpkgs"
-          "nixpkgs-overlays=/home/teto/dotfiles/nixpkgs/overlays"
+          # "nixpkgs-overlays=/home/teto/dotfiles/nixpkgs/overlays"
           # "https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
     ];
   # would be better with a dns name

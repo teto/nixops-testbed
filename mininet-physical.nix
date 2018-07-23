@@ -37,6 +37,12 @@
       # To have files created and accessed as the user within kvm/qemu.
       # none
       # Like passthrough, except failures in privileged operations are ignored.
+
+      # <filesystem type='mount' accessmode='passthrough'>
+      #     <source dir='/home/teto'/>
+      #     <target dir='xp'/>
+      # </filesystem>
+
       extraDevicesXML = ''
         <serial type='pty'>
         <target port='0'/>
@@ -45,24 +51,18 @@
         <target type='serial' port='0'/>
         </console>
         <filesystem type='mount' accessmode='passthrough'>
-            <source dir='/home/teto'/>
-            <target dir='xp'/>
+            <source dir='/home/teto/testbed'/>
+            <target dir='mn'/>
+        </filesystem>
+        <filesystem type='mount' accessmode='passthrough'>
+            <source dir='/home/teto/frite'/>
+            <target dir='frite'/>
+        </filesystem>
+        <filesystem type='mount' accessmode='passthrough'>
+            <source dir='/home/teto/nixpkgs'/>
+            <target dir='nixpkgs'/>
         </filesystem>
       '';
-
-        # <filesystem type='mount' accessmode='passthrough'>
-        #     <source dir='/home/teto/mininet'/>
-        #     <target dir='mn'/>
-        # </filesystem>
-
-        # <filesystem type='mount' accessmode='passthrough'>
-        #     <source dir='/home/teto/frite'/>
-        #     <target dir='frite'/>
-        # </filesystem>
-        # <filesystem type='mount' accessmode='passthrough'>
-        #     <source dir='/home/teto/nixpkgs'/>
-        #     <target dir='nixpkgs'/>
-        # </filesystem>
     };
     # add entry for fs ?
         # <filesystem type='mount' accessmode='passthrough'>
@@ -88,25 +88,32 @@
     #      "nofail"
     #    ];
     #};
-    fileSystems."/home/teto" = {
-      device = "xp";
+
+    # We don't want to mount our home since it will break tons of symlink => bash
+    # fileSystems."/home/teto" = {
+    #   device = "xp";
+    #   fsType = "9p";
+    #   options = [
+    #     "nofail" 
+    #     # "ro" might generate errors
+    #     # "ro"
+    #   ];
+    # };
+    fileSystems."/home/teto/testbed" = {
+      device = "mn";
       fsType = "9p";
-      options = [
-        "nofail" 
-        # "ro" might generate errors
-        # "ro"
-    ];
+      options = [ "nofail" ];
     };
-    # fileSystems."/home/teto/frite" = {
-    #   device = "frite";
-    #   fsType = "9p";
-    #   options = [ "nofail" ];
-    # };
-    # fileSystems."/home/teto/nixpkgs" = {
-    #   device = "nixpkgs";
-    #   fsType = "9p";
-    #   options = [ "nofail" ];
-    # };
+    fileSystems."/home/teto/frite" = {
+      device = "frite";
+      fsType = "9p";
+      options = [ "nofail" ];
+    };
+    fileSystems."/home/teto/nixpkgs" = {
+      device = "nixpkgs";
+      fsType = "9p";
+      options = [ "nofail" ];
+    };
 
     # VIRTUALBOX config 
     #deployment.targetEnv = "virtualbox"; # section 2

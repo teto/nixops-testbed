@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell shell-mininet.nix -i python --show-trace
+#!nix-shell shell-mininet.nix -vv -i python --show-trace
 
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080
@@ -79,7 +79,12 @@ topoAsymetric = [
     { 'bw': 2, 'delay': "20ms", "loss": 20},
 ]
 
-topo = topoWireLessHetero
+topoSinglePath = [
+    { 'bw': 2, 'delay': "20ms", "loss": 0},
+]
+
+topo = topoSinglePath
+# topo = topoWireLessHetero
 
 # So with AsymTCLink one can use
 # Link.__init__(self, node1, node2, port1=port1, port2=port2,
@@ -103,7 +108,7 @@ net = None
 def sigint_handler(signum, frame):
     print('Stop pressing the CTRL+C!')
     global net
-    net.stop()
+    # net.stop()
     sys.exit(3)
 
 # signal.signal(signal.SIGINT, sigint_handler)
@@ -144,6 +149,8 @@ def runSingleExperiment(run, client, server, out, **kwargs):
 
     reinject_out = _out("check", run, ".csv")
     number_of_paths = kwargs.get('number_of_paths')
+    # check_reinject = kwargs.get("")
+    check_reinject = False
     print(reinject_out)
 
     # sendCmd returns immediately while cmd waits for output
@@ -174,19 +181,21 @@ def runSingleExperiment(run, client, server, out, **kwargs):
         # server_iperf.poll()
         # TODO get results else it might get dirty
         with open(reinject_out, "w+") as fd:
-            print("launch check_reinject ")
-            client_check = client.popen(
-            # client_check = subprocess.Popen(
-                ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
-                # might be a problem
-                stdout=fd,
-                universal_newlines=True,
-                bufsize=0
-            )
-            if client_check.returncode is not None:
-                print("failed to start ", client_check.returncode)
-            # out, err = client_check.communicate()
-            print("launched check_reinject with pid", client_check.pid)
+
+            if check_reinject:
+                print("launch check_reinject ")
+                client_check = client.popen(
+                # client_check = subprocess.Popen(
+                    ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
+                    # might be a problem
+                    stdout=fd,
+                    universal_newlines=True,
+                    bufsize=0
+                )
+                if client_check.returncode is not None:
+                    print("failed to start ", client_check.returncode)
+                # out, err = client_check.communicate()
+                print("launched check_reinject with pid", client_check.pid)
 
             # if err is not None:
             #     print("Failed running with returncode=", client_check.returncode)
@@ -231,7 +240,7 @@ def runSingleExperiment(run, client, server, out, **kwargs):
         print("finally")
         if client_iperf.returncode is None:
             client_iperf.terminate()
-        if client_check.returncode is None:
+        if check_reinject and client_check.returncode is None:
             client_check.terminate()
 
         server_iperf.terminate()
@@ -350,6 +359,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
     parser.add_argument("-n", "--number-of-paths", type=int, default=2, help="The number of subflows")
+    parser.add_argument("-r", "--reinjections", type=bool, default=False, help="Check for reinjections")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
     parser.add_argument("-t", "--test", choices=["iperf3-cdf"], help="test to run", default="iperf3-cdf")
     parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
