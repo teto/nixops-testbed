@@ -5,7 +5,15 @@
 
   # look at http://rabexc.org/posts/p9-setup-in-libvirt
   # for how to setup shared folders
-  main = { config, pkgs, ... }:  {
+  main = { config, pkgs, ... }:
+    let
+      # TODO 
+      # "posixacl"
+      # version=9p2000.L must be one of the recent versions
+      # how to access logs of "debug=0x04"
+      options9p = [ "defaults" "nofail" "access=any" "trans=virtio" "version=9p2000.L" ];
+    in 
+    {
     deployment.targetEnv = "libvirtd";
     deployment.libvirtd = {
       baseImageSize = 12; # GB
@@ -103,17 +111,18 @@
       device = "mn";
       fsType = "9p";
       # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
-      options = [ "defaults" "nofail" "access=any" ];
+      options = options9p ++ [ "debug=0x05" ];
     };
     fileSystems."/home/teto/frite" = {
       device = "frite";
       fsType = "9p";
-      options = [ "defaults" "nofail" ];
+      options = options9p;
     };
     fileSystems."/home/teto/nixpkgs" = {
       device = "nixpkgs";
       fsType = "9p";
-      options = [ "defaults" "nofail" ];
+      # make it readonly
+      options = options9p ++ [ "ro"];
     };
 
     # VIRTUALBOX config 

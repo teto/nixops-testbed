@@ -304,19 +304,23 @@ def runExperiment(interactive, test, loss, **kwargs):
 # nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
 # todo use dumpcap instead
 # dumpcap -q -w
-        cmd = ["dumpcap", "-i", "any", "-w", _out("client", number_of_paths, ".pcapng") ]
+        cmd = ["tcpdump", "-i", "any", "-w", _out("client", number_of_paths, ".pcapng") ]
         print("starting %s" % cmd)
 
         print("CWD=", os.getcwd())
         client_tshark = client.popen(cmd, universal_newlines=True,)
-        # out, err = client_tshark.communicate()
+        # Check if child process has terminated. Set and return returncode attribute.
+        client_tshark.poll()
+        print("client tshark retcode", client_tshark.returncode)
         # print ( out, err)
         # print ( client_tshark.returncode)
         if client_tshark.returncode is not None:
             print("failed")
+            # raise Exception("")
 
-        cmd = ["dumpcap", "-i", "any", "-w", _out("server", number_of_paths, ".pcapng") ]
+        cmd = ["tcpdump", "-i", "any", "-w", _out("server", number_of_paths, ".pcapng") ]
         server_tshark = server.popen(cmd, universal_newlines=True,)
+        server_tshark.poll()
         if server_tshark.returncode is not None:
             print("failed")
 
@@ -332,9 +336,12 @@ def runExperiment(interactive, test, loss, **kwargs):
 
     if kwargs.get("capture"):
         print("killing dumpcap")
+        out, err = client_tshark.communicate()
+        print(" out/err ", out, err)
         print(" retcode ", client_tshark.returncode)
         client_tshark.terminate()
-        print(" retcode ", client_tshark.returncode)
+        out, err = server_tshark.communicate()
+        print(" retcode ", server_tshark.returncode)
         server_tshark.terminate()
         # server_tshark.terminate()
         # os.system('pkill -f \'tshark\'')
