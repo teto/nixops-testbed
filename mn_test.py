@@ -152,7 +152,7 @@ def runSingleExperiment(run, client, server, out, **kwargs):
     number_of_paths = kwargs.get('number_of_paths')
     # check_reinject = kwargs.get("")
     check_reinject = False
-    print(reinject_out)
+    print("reinject_out=", reinject_out)
 
     # sendCmd returns immediately while cmd waits for output
     # res = client.cmd("ls /sys")
@@ -336,11 +336,11 @@ def runExperiment(interactive, test, loss, **kwargs):
 
     if kwargs.get("capture"):
         print("killing dumpcap")
-        out, err = client_tshark.communicate()
-        print(" out/err ", out, err)
-        print(" retcode ", client_tshark.returncode)
+        # out, err = client_tshark.communicate()
+        # print(" out/err ", out, err)
+        # print(" retcode ", client_tshark.returncode)
         client_tshark.terminate()
-        out, err = server_tshark.communicate()
+        # out, err = server_tshark.communicate()
         print(" retcode ", server_tshark.returncode)
         server_tshark.terminate()
         # server_tshark.terminate()
