@@ -85,6 +85,10 @@ let
 
   services.owamp.enable = true;
 
+  home-manager.users.teto = { ... }:
+  {
+    imports = [ /home/teto/dotfiles/nixpkgs/home-common.nix ];
+  };
 
   nix = {
   # otherwise nix-shell won't work

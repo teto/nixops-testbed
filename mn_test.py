@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell shell-mininet.nix -vv -i python --show-trace
+#!nix-shell shell-mininet.nix -i python --show-trace
 
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080
@@ -31,6 +31,10 @@ from mininet.net import Mininet
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 from mininet.util import pmonitor
+from mininet.clean import cleanup as net_cleanup
+from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
+                           numCores, retry, mountCgroups )
+
 import mininet
 import functools
 import logging
@@ -57,7 +61,7 @@ import logging
 
 # todo make it so that we just have to unpack the parameter
 
-dataAmount = "5M"
+dataAmount = "1K"
 
 # can get parameters from 
 
@@ -80,12 +84,19 @@ topoAsymetric = [
     { 'bw': 2, 'delay': "20ms", "loss": 20},
 ]
 
+topoSymetric = [
+    { 'bw': 1, 'delay': "20ms", "loss": 0},
+    { 'bw': 1, 'delay': "20ms", "loss": 0},
+]
+
+
 topoSinglePath = [
     { 'bw': 2, 'delay': "20ms", "loss": 0},
 ]
 
 topo = topoSinglePath
 # topo = topoWireLessHetero
+topo = topoSymetric
 
 # So with AsymTCLink one can use
 # Link.__init__(self, node1, node2, port1=port1, port2=port2,
@@ -103,13 +114,15 @@ def _gout(out, *args):
     suffix = '_'.join(map(str, args))
     return os.path.join(out, suffix )
 
-net = None
+# net = None
 
 # clean sthg
 def sigint_handler(signum, frame):
     print('Stop pressing the CTRL+C!')
-    global net
+    # global net
     # net.stop()
+
+    net_cleanup()
     sys.exit(3)
 
 # signal.signal(signal.SIGINT, sigint_handler)
@@ -206,7 +219,6 @@ def runSingleExperiment(run, client, server, out, **kwargs):
             # assert err == 0
 
             cmd = "iperf3 -c {serverIP} -n {dataAmount} --json --logfile={logfile} ".format(
-            # client.cmd("iperf3 -c {serverIP} -n {dataAmount} --logfile {logfile} ".format(
                 serverIP=server.IP(),   # seems to work
                 # serverIP="10.0.0.2",
                 dataAmount=dataAmount,
@@ -214,18 +226,23 @@ def runSingleExperiment(run, client, server, out, **kwargs):
                 logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
             )
 
-            # client.cmd(cmd)
+            # out = client.monitor(timeoutms=2000)
+            out = client.cmd(cmd)
 
-            client_iperf = client.popen(cmd) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # out, err, exit = errFail(cmd)
+            print("process output: %s", out)
+            # if exit != 0:
+            #     print("Process exited with %d : %d", exit)
+            #     print("An error happened: %s", err)
 
-            print("communicate for client iperf ")
-
-            # out, err = client_iperf.communicate()
-            # # wait for iperf to finish
-            print("waiting for client iperf ")
-            # print(out)
-            # print(err)
-            client_iperf.wait()
+            # client_iperf = client.popen(cmd) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # print("communicate for client iperf ")
+            # # out, err = client_iperf.communicate()
+            # # # wait for iperf to finish
+            # print("waiting for client iperf ")
+            # # print(out)
+            # # print(err)
+            # client_iperf.wait()
             # client.waitOutput()
 
             # if client_check.returncode:
@@ -237,16 +254,17 @@ def runSingleExperiment(run, client, server, out, **kwargs):
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
     except Exception as e:
-        logging.error("ERROR %s" % e)
+        logging.exception("Exception triggered ")
 
     finally:
         print("finally")
-        if client_iperf and client_iperf.returncode is None:
-            client_iperf.terminate()
+        # if client_iperf and client_iperf.returncode is None:
+        #     client_iperf.terminate()
         if check_reinject and client_check.returncode is None:
             client_check.terminate()
 
         server_iperf.terminate()
+        # net.stop()
 
 def runExperiment(interactive, test, loss, **kwargs):
 
@@ -254,7 +272,7 @@ def runExperiment(interactive, test, loss, **kwargs):
     number_of_paths = kwargs.get('number_of_paths', 1)
 
     # using 
-    global net
+    # global net
     net = Mininet(
         topo=StaticTopo(number_of_paths, loss), 
         # link=mininet.link.AsymTCLink,
@@ -272,25 +290,6 @@ def runExperiment(interactive, test, loss, **kwargs):
         client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
         server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
     
-    # heat network to avoid intial packet artefacts
-    # for now I don't care
-    # for i in range(number_of_paths):
-    #     client.cmd("ping 1" + str(i) + ".0.0.2 -c 4")
-
-        # client.cmd("owping 1" + str(i) + ".0.0.2 -c 4 2>&1 > owping" + str(i) + ".log ")
-
-    # sys.exit(1)
-
-    # owamp doesn't work through NAT except in authenticated mode
-    # create owamp
-    # todo I can create it directly
-    # created toto/test
-    # server.cmd('pfstore -f owamp.pfs -n toto')
-    
-    # to run via cli
-    # client owping 10.0.0.2 -c 4 -A A
-    # server owampd -U owamp -R . -d /tmp -v -a A
-
     if interactive:
         print("Experiment is ready to start... enter exit to start")
         print("client ping 10.0.0.2 -c 4")
