@@ -1,3 +1,7 @@
+
+make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
+
+
 # inspired by https://github.com/bjornfor/nixos-config
 
 
