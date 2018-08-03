@@ -5,19 +5,38 @@
  * License as published by the Free Software Foundation.
  */
 
+/* see https://stackoverflow.com/questions/47895179/how-to-build-bpf-program-out-of-the-kernel-tree
+ * passer le dossier linux sinon il va chercher les include dans glibc
+ * nostdinc seem ignored => Erase NIX_CFLAGS_COMPILE and NIX_TARGET_CFLAGS_COMPILE
+ */
 #define KBUILD_MODNAME "foo"
-#include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
 
-#include <linux/ptrace.h>
 
-#include <uapi/linux/if_ether.h>
-#include <uapi/linux/if_packet.h>
-#include <uapi/linux/ip.h>
-#include <uapi/linux/in.h>
-#include <uapi/linux/tcp.h>
-#include <uapi/linux/filter.h>
-#include <uapi/linux/pkt_cls.h>
+
+/* #include <asm/types.h> */
+/* #include <asm/byteorder.h> */
+
+/* #include <linux/linkage.h> */
+#include <linux/bpf.h>
+
+/* #include <linux/ptrace.h> */
+
+/* for bpf_map_lookup_elem should be include */
+/* should I add a -I instead ? must come after linux/bpf.h?
+ * bpf_map_lookup_elem should be include */
+
+#include <linux/kernel.h> /* for offsetof */
+#include <linux/if_ether.h>
+#include <linux/if_packet.h>
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/tcp.h>
+#include <linux/filter.h>
+#include <linux/pkt_cls.h>
+#include <linux/stddef.h> /* for offsetof */
+/* #include <stdbool.h> */
+
+#include "bpf_helpers.h" 
 
 #define IP_TCP 	6
 #define ETH_HLEN 14
@@ -25,13 +44,6 @@
 struct Key {
   unsigned char p[255];
 };
-
-struct Leaf {
-  // Not really needed in this example
-  bool seen;
-};
-
-
 
 #define SEC(NAME) __attribute__((section(NAME), used))
 #define PIN_GLOBAL_NS		2
@@ -76,7 +88,8 @@ struct bpf_elf_map SEC("maps") map = {
 	return bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }*/
 
-#define DEBUG 1
+#define DEBUG 0
+
 #ifdef  DEBUG
 /* Only use this for debug output. Notice output from bpf_trace_printk()
  *  * end-up in /sys/kernel/debug/tracing/trace_pipe
@@ -120,7 +133,10 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 
 	if(!tcp)
 		return TC_ACT_OK;
-	__u16 *addr = (__u16 *) (&(tcp -> ack_seq) + 1);
+
+	/* sizeof(struct tcphdr); */
+
+	/* __u16 *addr = (__u16 *) (&(tcp -> ack_seq) + 1); */
 	__u64 flags = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
 	//__u16 flags = *addr;//*((__u16 *) ((0 + 1)));
 	if( get_flag(flags, SYN)) {
