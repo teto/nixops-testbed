@@ -6,6 +6,13 @@
  */
 
 /* see https://stackoverflow.com/questions/47895179/how-to-build-bpf-program-out-of-the-kernel-tree
+ * clang -O2 -emit-llvm -c test_ebpf_tc.c -o - | llc -march=bpf -filetype=obj -o bpf.o
+ * Set $dev to `make INSTALL_HDR_PATH=dest headers_install`
+ * 
+ * clang  -O2 -emit-llvm -nolibc -nostdinc -c test_ebpf_tc.c -v  -I$dev/include  | llc -march=bpf -filetype=obj -o bpf.o
+ *
+ * Look in https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/samples/bpf/Makefile
+ * for include directories
  * passer le dossier linux sinon il va chercher les include dans glibc
  * nostdinc seem ignored => Erase NIX_CFLAGS_COMPILE and NIX_TARGET_CFLAGS_COMPILE
  */
