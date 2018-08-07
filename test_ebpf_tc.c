@@ -15,24 +15,31 @@
  * for include directories
  * passer le dossier linux sinon il va chercher les include dans glibc
  * nostdinc seem ignored => Erase NIX_CFLAGS_COMPILE and NIX_TARGET_CFLAGS_COMPILE
+ *
+ THIS WORKED !!!
+nix-shell -p llvm_4 clang
+clang  -O2 -emit-llvm -c test_ebpf_tc.c -v -I${dev}/build/dest -I${dev}/build/include -I${dev}/build/arch/x86/include/uapi -I${dev}/arch/x86/include| llc -march=bpf -filetype=obj -o bpf.o
  */
 #define KBUILD_MODNAME "foo"
 
-
-
-/* #include <asm/types.h> */
-/* #include <asm/byteorder.h> */
-
-/* #include <linux/linkage.h> */
-#include <linux/bpf.h>
-
-/* #include <linux/ptrace.h> */
+/* include/uapi/linux/bpf.h */
 
 /* for bpf_map_lookup_elem should be include */
 /* should I add a -I instead ? must come after linux/bpf.h?
  * bpf_map_lookup_elem should be include */
 
-#include <linux/kernel.h> /* for offsetof */
+/* #include <uapi/linux/kernel.h> /1* for offsetof *1/ */
+
+/* #include <uapi/linux/bpf.h> */
+/* #include <uapi/linux/if_ether.h> */
+/* #include <uapi/linux/if_packet.h> */
+/* #include <uapi/linux/ip.h> */
+/* #include <uapi/linux/in.h> */
+/* #include <uapi/linux/tcp.h> */
+/* #include <uapi/linux/filter.h> */
+/* #include <uapi/linux/pkt_cls.h> */
+
+#include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <linux/ip.h>
@@ -40,10 +47,12 @@
 #include <linux/tcp.h>
 #include <linux/filter.h>
 #include <linux/pkt_cls.h>
-#include <linux/stddef.h> /* for offsetof */
-/* #include <stdbool.h> */
-
+/* copied from samples/bpf/bpf_helpers.h */
 #include "bpf_helpers.h" 
+
+
+/* for offsetof */
+#include <stddef.h> 
 
 #define IP_TCP 	6
 #define ETH_HLEN 14
@@ -157,7 +166,7 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
         
 	//bpf_debug("ack = %x\n", tcp -> ack_seq);
         // fin is at the 1st position of the byte in little endian
-	if (false && get_flag(flags, PSH) && get_flag(flags, FIN) /*|| get_flag(flags, PSH)*/ /*&& !*seen*/) { // tail drop
+	if (0 && get_flag(flags, PSH) && get_flag(flags, FIN) /*|| get_flag(flags, PSH)*/ /*&& !*seen*/) { // tail drop
 		*seen = 1;
 		bpf_debug("DROP, PSH: %x\n", get_flag(flags, PSH));
                 bpf_debug("DROP, FIN: %x\n", get_flag(flags, FIN));
