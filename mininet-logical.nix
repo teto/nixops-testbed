@@ -87,9 +87,17 @@ let
 
   home-manager.users.teto = { ... }:
   {
-    imports = [ /home/teto/dotfiles/nixpkgs/home-common.nix ];
+    imports = [
+      /home/teto/dotfiles/nixpkgs/home-common.nix 
+    ];
   };
 
+  # when connecting as 
+  security.sudo.wheelNeedsPassword = false;
+
+  # extraFules allows
+  # [ { commands = [ "ALL" ] ; groups = [ "sudo" ] ; } { commands = [ { command = "/home/root/secret.sh"; options = [ "SETENV" "NOPASSWD" ] ; } ] ; groups = [ 1006 ] ; users = [ "backup" "database" ] ; } { commands = [ "/home/baz/cmd1.sh hello-sudo"
+           # { command = ''/home/baz/cmd2.sh ""''; options = [ "SETENV" ] ; } ] ; groups = [ "bar" ] ; runAs = "foo"; } ]
   nix = {
   # otherwise nix-shell won't work
     nixPath = [
@@ -98,7 +106,9 @@ let
           # "nixpkgs-overlays=/home/teto/dotfiles/nixpkgs/overlays"
           # "https://github.com/nixos/nixpkgs-channels/archive/nixos-18.03.tar.gz"
     ];
-  # would be better with a dns name
+
+    # would be better with a dns name
+    # so that we can download from
     binaryCaches =  [ "http://192.168.128.1:8080" ];
     requireSignedBinaryCaches = false;
 
