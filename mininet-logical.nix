@@ -81,7 +81,7 @@ let
     enable = true;
   };
 
-  system.nixos.stateVersion = "18.03";
+  system.stateVersion = "18.03";
 
   services.owamp.enable = true;
 
@@ -93,7 +93,7 @@ let
   };
 
   # when connecting as 
-  security.sudo.wheelNeedsPassword = false;
+  security.sudo.wheelNeedsPassword = lib.mkForce false;
 
   # extraFules allows
   # [ { commands = [ "ALL" ] ; groups = [ "sudo" ] ; } { commands = [ { command = "/home/root/secret.sh"; options = [ "SETENV" "NOPASSWD" ] ; } ] ; groups = [ 1006 ] ; users = [ "backup" "database" ] ; } { commands = [ "/home/baz/cmd1.sh hello-sudo"

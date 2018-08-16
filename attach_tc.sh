@@ -1,4 +1,4 @@
-IF="enp0s6"
+IF="enp0s7"
 sudo tc qdisc add dev "$IF" clsact
 
 # le "Note: 8 bytes struct bpf_elf_map fixup performed due to size mismatch! est normal

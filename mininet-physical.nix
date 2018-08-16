@@ -61,6 +61,10 @@
         <target type='serial' port='0'/>
         </console>
         <filesystem type='mount' accessmode='mapped'>
+            <source dir='/home/teto/mptcp'/>
+            <target dir='mptcp'/>
+        </filesystem>
+        <filesystem type='mount' accessmode='mapped'>
             <source dir='/home/teto/testbed'/>
             <target dir='mn'/>
         </filesystem>
@@ -111,6 +115,12 @@
     # };
     fileSystems."/home/teto/testbed" = {
       device = "mn";
+      fsType = "9p";
+      # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
+      options = options9p ;
+    };
+    fileSystems."/home/teto/mptcp" = {
+      device = "mptcp";
       fsType = "9p";
       # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
       options = options9p ;

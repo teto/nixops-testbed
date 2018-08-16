@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell shell-mininet.nix -i python --show-trace
+#!nix-shell shell-mininet.nix -i python --show-trace -vv
 
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080
@@ -135,6 +135,8 @@ class StaticTopo(Topo):
         client = self.addHost('client')
         server = self.addHost('server')
         
+
+        # for r, cmd in [(self.r3, 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         for i, params in enumerate(topo):
             s = self.addSwitch('s' + str(i))
 
@@ -143,6 +145,22 @@ class StaticTopo(Topo):
             link2 = self.addLink(server, s, **params)
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
             print("just for testing, link type = ", type(link2))
+
+def attach_filter(node):
+    """
+    Attach ebpf drop filter to interface
+    """
+    cmd = "tc filter add dev r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action"
+    # print cmd
+    out = node.cmd(cmd)
+    if "File exists" in out:
+        cmd = cmd.replace("add", "change")
+        print("exists")
+        out = node.cmd(cmd)
+
+    if out:
+        print(cmd)
+        print(out)
 
 
 class MptcpHost(mininet.net.Host):
