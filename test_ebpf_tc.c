@@ -4,40 +4,17 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-
 /* see https://stackoverflow.com/questions/47895179/how-to-build-bpf-program-out-of-the-kernel-tree
  * clang -O2 -emit-llvm -c test_ebpf_tc.c -o - | llc -march=bpf -filetype=obj -o bpf.o
  * Set $dev to `make INSTALL_HDR_PATH=dest headers_install`
  * 
- * clang  -O2 -emit-llvm -nolibc -nostdinc -c test_ebpf_tc.c -v  -I$dev/include  | llc -march=bpf -filetype=obj -o bpf.o
- *
  * Look in https://github.com/netoptimizer/prototype-kernel/blob/master/kernel/samples/bpf/Makefile
- * for include directories
- * passer le dossier linux sinon il va chercher les include dans glibc
- * nostdinc seem ignored => Erase NIX_CFLAGS_COMPILE and NIX_TARGET_CFLAGS_COMPILE
  *
  THIS WORKED !!!
 nix-shell -p llvm_4 clang
 clang  -O2 -emit-llvm -c test_ebpf_tc.c -v -I${dev}/build/dest -I${dev}/build/include -I${dev}/build/arch/x86/include/uapi -I${dev}/arch/x86/include| llc -march=bpf -filetype=obj -o bpf.o
  */
 #define KBUILD_MODNAME "foo"
-
-/* include/uapi/linux/bpf.h */
-
-/* for bpf_map_lookup_elem should be include */
-/* should I add a -I instead ? must come after linux/bpf.h?
- * bpf_map_lookup_elem should be include */
-
-/* #include <uapi/linux/kernel.h> /1* for offsetof *1/ */
-
-/* #include <uapi/linux/bpf.h> */
-/* #include <uapi/linux/if_ether.h> */
-/* #include <uapi/linux/if_packet.h> */
-/* #include <uapi/linux/ip.h> */
-/* #include <uapi/linux/in.h> */
-/* #include <uapi/linux/tcp.h> */
-/* #include <uapi/linux/filter.h> */
-/* #include <uapi/linux/pkt_cls.h> */
 
 #include <linux/bpf.h>
 #include <linux/if_ether.h>

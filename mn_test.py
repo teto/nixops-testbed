@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell 
-#!nix-shell shell-mininet.nix -i python --show-trace -vv
+#!nix-shell shell-mininet.nix -i python --show-trace
 
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080
@@ -135,6 +135,7 @@ class StaticTopo(Topo):
         client = self.addHost('client')
         server = self.addHost('server')
         
+        global args
 
         # for r, cmd in [(self.r3, 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         for i, params in enumerate(topo):
@@ -145,12 +146,23 @@ class StaticTopo(Topo):
             link2 = self.addLink(server, s, **params)
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
             print("just for testing, link type = ", type(link2))
+            if args.ebpfdrop:
+                attach_filter(s)
 
 def attach_filter(node):
     """
     Attach ebpf drop filter to interface
     """
-    cmd = "tc filter add dev r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action"
+    # TODO should do it 
+    # s0-eth1
+    # s0-eth2
+    ifname = node.name + "eth1"
+
+    node.cmd('tc qdisc add dev %s clsact' % ifname)
+    cmd = "tc filter add dev {ifname} ingress bpf obj {bytecode} section action direct-action".format(
+            ifname=ifname,
+            bytecode="test_ebpf_tc.o")
+
     # print cmd
     out = node.cmd(cmd)
     if "File exists" in out:
@@ -394,8 +406,11 @@ if __name__ == '__main__':
     parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
+    parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False, help="Wether to attach our filter")
     # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
     # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
+
+    global args
     args, unknown_args = parser.parse_known_args()
     
     setLogLevel(args.debug)

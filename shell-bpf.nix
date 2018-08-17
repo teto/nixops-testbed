@@ -1,6 +1,8 @@
 # linux-headers  
 # make $(linux-headers)/samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
 # clang -O2 -emit-llvm -c bpf.c -o - | llc -march=bpf -filetype=obj -o bpf.o
+
+/* nix-shell -E 'with import <nixpkgs> {}; clangStdenv.mkDerivation { hardeningDisable=["all"]; name = "name"; buildInputs = [llvm_5];}' */
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
