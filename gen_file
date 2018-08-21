@@ -1,0 +1,16 @@
+#!/bin/sh
+# https://unix.stackexchange.com/questions/121865/create-random-data-with-dd-and-get-partial-read-warning-is-the-data-after-the
+# dd if=/dev/random of=./test_file count=100 bs=8
+
+# -c print the first NUM bytes of each file;
+out="test_file"
+
+len_1="5M"
+len_2="1M"
+head -c "$len_1" </dev/urandom > "$out"
+echo "DROPME" >> "$out"
+head -c "$len_2" </dev/urandom >> "$out"
+
+ls -lH "$out"
+# https://superuser.com/questions/850267/how-to-append-data-in-a-file-by-dd
+# dd if=/dev/random of=./test_file count=100 bs=8 oflag=append conv=notrunc 

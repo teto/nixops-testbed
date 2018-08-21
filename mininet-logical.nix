@@ -48,6 +48,7 @@ let
 
   environment.systemPackages = with pkgs; [
     flent # https://flent.org/intro.html#quick-start
+    gdb
     owamp
     ethtool # needed
     netperf
