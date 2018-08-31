@@ -5,6 +5,11 @@
 # => on the host you need to start nix-serve -p 8080
 # in order to build up 
 
+# when you have a problem with the store
+# look at https://github.com/NixOS/nixops/issues/931
+# mount -o remount,rw /nix/store
+# chown -R root:root /nix/store
+
 # To clean everything run 'mn -c'
 
 # python needs to read this 
@@ -421,7 +426,7 @@ if __name__ == '__main__':
     # 
     print("To clean run `mn -c`")
     print("You might want to run `nix-serve  -p 8080`")
-    print("sudo insmod mptcp/build/net/mptcp/mptcp_prevenant.ko")
+    print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("-f", "--file", help="The file which contains the scheduler", required=True)
@@ -459,15 +464,22 @@ if __name__ == '__main__':
 
     # we don't have their RBS scheduler
     # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
+    def run_sysctl(key, value, **popenargs):
+        # todo parse output of check_output instead
+        subprocess.check_call(["sysctl","-w","net.mptcp.mptcp_scheduler=%s" % value], shell=True)
+
 
     sched_name = "prevenant"
     # sched_name = "default"
-    subprocess.check_call("sysctl -w net.mptcp.mptcp_scheduler=%s" % sched_name, shell=True)
+    # run_sysctl("net.mptcp.mptcp_scheduler", sched_name)
 
-    subprocess.check_call('sysctl -w net.mptcp.mptcp_path_manager=fullmesh', shell=True)
+    run_sysctl('net.mptcp.mptcp_path_manager', 'fullmesh')
+
+    # TODO faut que je fasse echouer l'appel quand le sysctl est pas bon (au lieu d'un message d'erreur)
+    # subprocess.check_call('sysctl -w net.mptcp.mptcp_aggressive_dupack=', shell=True)
 
     # TODO use iperf command instead
-    subprocess.check_call("sysctl -w net.ipv4.tcp_rmem='{0} {0} {0}'".format(4000,), shell=True)
+    run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
 
     # if args.number_of_subflows:
     #     number_of_paths = [int(args.number_of_subflows)]
@@ -479,5 +491,3 @@ if __name__ == '__main__':
     #     print("Running experiments with ", paths, "subflows")
     runExperiment(**args)
     
-    # ProgMP.setDefaultScheduler("simple")
-    # ProgMP.removeScheduler(schedulerName)

@@ -23,7 +23,7 @@
 
       # TODO keep for later
       #  boot.consoleLogLevel=1
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 nokaslr tcp_probe.port=5201 tcp_probe.full=1";
+      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 raid=noautodetect nokaslr tcp_probe.port=5201 tcp_probe.full=1";
       # # # x86_64 is a symlink towards x86
       # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
       kernel="/home/teto/bzImage";
