@@ -73,6 +73,10 @@
             <target dir='frite'/>
         </filesystem>
         <filesystem type='mount' accessmode='passthrough'>
+            <source dir='/home/teto/mininet'/>
+            <target dir='mininet'/>
+        </filesystem>
+        <filesystem type='mount' accessmode='passthrough'>
             <source dir='/home/teto/nixpkgs'/>
             <target dir='nixpkgs'/>
         </filesystem>
@@ -129,6 +133,13 @@
       device = "frite";
       fsType = "9p";
       options = options9p;
+    };
+
+    fileSystems."/home/teto/mininet" = {
+      device = "mininet";
+      fsType = "9p";
+      # make it readonly
+      options = options9p ++ [ "ro"];
     };
     fileSystems."/home/teto/nixpkgs" = {
       device = "nixpkgs";

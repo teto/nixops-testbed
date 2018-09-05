@@ -84,7 +84,8 @@ let
 
   system.stateVersion = "18.03";
 
-  services.owamp.enable = true;
+  # owampd will run, then use owping to test
+  # services.owamp.enable = true;
 
   home-manager.users.teto = { ... }:
   {
