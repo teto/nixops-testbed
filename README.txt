@@ -1,13 +1,18 @@
 
-make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
+
+# generate ebpf bytecode
+
+$ nix-shell -A ebpfdropper ~/nixpkgs
+$ clang -O2 -emit-llvm -c ebpf_dropper.c -o - | llc -march=bpf -filetype=obj -o ebpf_dropper.o && ./attach_tc.sh eth0
+
+# generate the file to be dropped
+
+$ ./gen-file
+
+will create a file that appends DROPME at its end
 
 
-# inspired by https://github.com/bjornfor/nixos-config
 
 
-sudo mv /etc/nixos /etc/nixos.bak
-sudo git clone https://github.com/bjornfor/nixos-config /etc/nixos
-sudo cp /etc/nixos.bak/hardware-configuration.nix /etc/nixos/
-sudo ln -sr /etc/nixos/machines/$MACHINE.nix /etc/nixos/configuration.nix
 
-nixops create -d matt ~/testbed/libvirtd.nix ~/testbed/main.nix --debug
+

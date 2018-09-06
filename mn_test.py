@@ -77,7 +77,7 @@ net  = None
 dataAmount = "1M"
 
 # set to none for a random stream
-FILE_TO_TRANSFER=""
+FILE_TO_TRANSFER="test_file"
 EBPF_DROPPER_BYTECODE="ebpf_dropper.o"
 
 # can get parameters from 
@@ -151,9 +151,18 @@ class StaticTopo(Topo):
     """
     Simple topo with 2 hosts and 'number_of_paths' paths
     
-10.0.0.2
-    server --g----- s1 ----------- client
-             \________ s2 ____________/
+    # server --g----- s1 ----------- client
+    #          \________ s2 ____________/
+
+        
+                     r1
+                  /      \
+           client         r3  ---  server
+                  \      /
+                     r2
+        
+         we use routers instead of switches to avoid OVS-related problems
+        
     """
     def build(self, number_of_paths = 2, loss = 0):
 
@@ -164,7 +173,7 @@ class StaticTopo(Topo):
         client = self.addHost('client')
         server = self.addHost('server')
         # gateway = self.addHost('gateway')
-        gateway = self.addSwitch('g0')
+        gateway = self.addHost('gateway')
 
         print("attach_filter %r" % gateway)
         
@@ -173,13 +182,12 @@ class StaticTopo(Topo):
 
         # only one link between the 2
         # https://github.com/mininet/mininet/issues/823
-        link2 = self.addLink(server, gateway, loss=0, params1=backward)
 
         # for r, cmd in [(self.r3, 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         for i, params in enumerate(topo):
-            name = 's' + str(i)
-            print("NAME", name)
-            s = self.addSwitch(name)
+            name = 'r' + str(i)
+            # print("NAME", name)
+            s = self.addHost(name)
 
             # one good fast path
             # params.update({'use_tbf': True,
@@ -191,12 +199,57 @@ class StaticTopo(Topo):
             # self.r3.cmd("ip route add {dest} via 5.5.5.1 dev %s-eth0".format(
             #     dest=3.3.3.0/24))
             # % self.r3_name)
-            print("link %r" % link)
-
-
+            # print("link %r" % link)
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
-            
             print("just for testing, link type = ", type(link2))
+
+
+        # dans frite, il l'ajoute en dernier
+        link2 = self.addLink(server, gateway, loss=0, params1=backward)
+
+
+    def hook(self, network):
+
+        client = network.get("client")
+        server = network.get("server")
+        r1 = network.get("r1")
+        r2 = network.get("r2")
+        r3 = network.get("gateway")
+
+        client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
+        client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
+        r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
+        r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
+        r2.setIP('4.4.4.1', 24, '%s-eth0' % r2.name)
+        r2.setIP('6.6.6.1', 24, '%s-eth1' % r2.name)
+        r3.setIP('5.5.5.2', 24, '%s-eth0' % r3.name)
+        r3.setIP('6.6.6.2', 24, '%s-eth1' % r3.name)
+        r3.setIP('7.7.7.1', 24, '%s-eth2' % r3.name)
+        server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
+
+        client.cmd('ip rule add from 3.3.3.3 table 1')
+        client.cmd('ip rule add from 4.4.4.4 table 2')
+        client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
+        client.cmd('ip route add default from 3.3.3.3 via 3.3.3.1 dev %s-eth0 table 1' % client.name)
+        client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
+        client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
+        client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
+
+        server.cmd('ip route add default via 7.7.7.1')
+
+        # should already be shared
+        r1.cmd('sysctl -w net.ipv4.ip_forward=1')
+        r2.cmd('sysctl -w net.ipv4.ip_forward=1')
+        r3.cmd('sysctl -w net.ipv4.ip_forward=1')
+
+        r3.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % r3.name)
+        r3.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % r3.name)
+        r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+        r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+        r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+        r2.cmd('ip route add 7.7.7.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
+        r2.cmd('ip route add 3.3.3.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
+        r2.cmd('ip route add 5.5.5.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
 
 
 def attach_filter(node):
@@ -314,10 +367,11 @@ def runSingleExperiment(run, client, server, out, **kwargs):
 
             # assert err == 0
 
-            cmd = "iperf3 -c {serverIP} -n {dataAmount} --json --logfile={logfile} {fromFile}".format(
+            cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
                 serverIP=server.IP(),   # seems to work
                 # serverIP="10.0.0.2",
-                dataAmount=dataAmount,
+                # dataAmount="-n " + dataAmount if FILE_TO_TRANSFER is not None else "",
+                dataAmount="",
                 # Generated by gen_file
                 # must finish with a string "DROPME" so that ebpfdropper can recognize and 
                 # drop it
@@ -409,9 +463,9 @@ def runExperiment(interactive, test, loss, **kwargs):
         print("client ping 10.0.0.2 -c 4")
         res = None
         res = CLI(net)
-        if res:
-            net.stop()
-            sys.exit(1)
+        # if res:
+        #     net.stop()
+        #     sys.exit(1)
 
         print("RESULT %r" % (res))
 

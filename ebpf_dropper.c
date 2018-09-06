@@ -78,6 +78,7 @@ struct bpf_elf_map SEC("maps") map = {
         .max_elem = 2,
 };
 
+/* printt */
 #define DEBUG 1
 #ifdef  DEBUG
 /* Only use this for debug output. Notice output from bpf_trace_printk()
@@ -93,6 +94,7 @@ struct bpf_elf_map SEC("maps") map = {
 #define bpf_debug(fmt, ...) { } while (0)
 #endif
 
+/* TCPHDR_FIN */
 /* #define FIN 0 */
 /* #define SYN 1 */
 /* #define RST 2 */
@@ -106,8 +108,9 @@ struct bpf_elf_map SEC("maps") map = {
 /* 	return flags & (1 << flag); */
 /* } */
 
-/* TCPHDR_FIN */
+/* TCPHDR_FIN would be undeclared */
 /* ETH_HLEN defined in libc */
+
 
 SEC("action") int handle_ingress(struct __sk_buff *skb)
 {
@@ -134,14 +137,31 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 		return TC_ACT_OK;
 	__u16 *addr = (__u16 *) (&(tcp -> ack_seq) + 1);
 	/* tcp_flag_byte TCP_FLAG_PSH used with tcp_flag_word */
-	/* tcp_flag_byte() */
-	/* __be32 flags = tcp_flag_word(tcp); */
-	__u64 flags = 0;
-	__u64 flags2 = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
-	bpf_debug("flag_word gives %x while flags2 gives\n", flags, flags2);
+
+	/* u8 tcp_flag_byte(); Look at/taken from bcc/tools/tcpdrop.py */
+	/* __u8 flags = ((u_int8_t *)tcp)[13]; */
+
+	/* generates an error
+	 * load_byte/half/word
+	 * */
+	/* __be32 flags = *tcp_flag_word(tcp); 
+	 * load_byte　c la position dans le SKB */
+	/* __u64 flags = load_byte(skb, tcp_flag_word(tcp) - skb); */
+	/* __u64 flags = load_byte(skb, ((__u8 *)tcp)[13]); */
+	/* __u64 flags = 0; */
+
+	/* print("tcp %d", TCPHDR_FIN); */
+	__u64 flags = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
+	/* __u64 flags = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1); */
+
+	/* bpf_debug("flag_word gives %u while flags2 gives %u\n", flags, flags); */
+	bpf_debug("flag_word gives %u while flags2 gives %u\n", flags, flags);
+	bpf_debug(">> SYN %x vs flags << 16 %x\n", TCP_FLAG_SYN, flags << 8);
+	flags = flags << 8;
 	/* __u64 flags = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) ); */
 	
 
+	/* if( tcp->syn ) { */
 	if( flags & TCP_FLAG_SYN) {
 		__u32 val = 0;
 		*seen = 0;

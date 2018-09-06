@@ -82,6 +82,18 @@ let
     enable = true;
   };
 
+  # see networkmanager.conf
+  # [device]
+  # match-device=interface-name:eth3
+  # managed=1
+  networking.networkmanager.unmanaged = [
+    "interface-name:r?-*"
+    "interface-name:r?-*"
+    "interface-name:client-*"
+    "interface-name:server-*"
+    ];
+
+
   system.stateVersion = "18.03";
 
   # owampd will run, then use owping to test
