@@ -201,11 +201,11 @@ class StaticTopo(Topo):
             # % self.r3_name)
             # print("link %r" % link)
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
-            print("just for testing, link type = ", type(link2))
 
 
         # dans frite, il l'ajoute en dernier
         link2 = self.addLink(server, gateway, loss=0, params1=backward)
+        print("just for testing, link type = ", type(link2))
 
 
     def hook(self, network):
@@ -444,7 +444,7 @@ def runExperiment(interactive, test, loss, **kwargs):
     net.start()
     client = net.get('client')
     server = net.get('server')
-    gateway = net.get('g0')
+    gateway = net.get('gateway')
     # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
 
     if args.get("ebpfdrop"):
