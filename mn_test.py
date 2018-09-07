@@ -116,7 +116,7 @@ topoSinglePath = [
 topo = topoSinglePath
 # topo = topoWireLessHetero
 # topo = topoSymetric
-# topo = topoAsymetric
+topo = topoAsymetric
 
 # So with AsymTCLink one can use
 # Link.__init__(self, node1, node2, port1=port1, port2=port2,
@@ -185,7 +185,7 @@ class StaticTopo(Topo):
 
         # for r, cmd in [(self.r3, 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         for i, params in enumerate(topo):
-            name = 'r' + str(i)
+            name = 'r' + str(i + 1)
             # print("NAME", name)
             s = self.addHost(name)
 
@@ -193,7 +193,7 @@ class StaticTopo(Topo):
             # params.update({'use_tbf': True,
             #     'max_queue_size': 15000 # 10 paquets
             # })
-            self.addLink(client, s, params1=params.get("params1"))
+            self.addLink(client, s, **params)
             link = self.addLink(s, gateway, loss=0, )
             # add route
             # self.r3.cmd("ip route add {dest} via 5.5.5.1 dev %s-eth0".format(
@@ -204,7 +204,7 @@ class StaticTopo(Topo):
 
 
         # dans frite, il l'ajoute en dernier
-        link2 = self.addLink(server, gateway, loss=0, params1=backward)
+        link2 = self.addLink(server, gateway, )
         print("just for testing, link type = ", type(link2))
 
 
@@ -220,8 +220,10 @@ class StaticTopo(Topo):
         client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
         r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
         r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
+
         r2.setIP('4.4.4.1', 24, '%s-eth0' % r2.name)
         r2.setIP('6.6.6.1', 24, '%s-eth1' % r2.name)
+
         r3.setIP('5.5.5.2', 24, '%s-eth0' % r3.name)
         r3.setIP('6.6.6.2', 24, '%s-eth1' % r3.name)
         r3.setIP('7.7.7.1', 24, '%s-eth2' % r3.name)
@@ -247,6 +249,7 @@ class StaticTopo(Topo):
         r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
         r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
         r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+
         r2.cmd('ip route add 7.7.7.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
         r2.cmd('ip route add 3.3.3.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
         r2.cmd('ip route add 5.5.5.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
@@ -434,13 +437,17 @@ def runExperiment(interactive, test, loss, **kwargs):
 
     # using 
     global net
+    my_topo = StaticTopo(number_of_paths, loss)
     net = Mininet(
-        topo=StaticTopo(number_of_paths, loss), 
+        topo=my_topo,
         link=mininet.link.AsymTCLink,
         # NOOO
         # link=TCLink,
         host=MptcpHost
     )
+
+    # installs IPs
+    my_topo.hook(net)
     net.start()
     client = net.get('client')
     server = net.get('server')
@@ -454,9 +461,9 @@ def runExperiment(interactive, test, loss, **kwargs):
 
     # there is probably a better way, but somehow we have to configure
     # the IP adresses
-    for i in range(0, number_of_paths):
-        client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
-        server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
+    # for i in range(0, number_of_paths):
+    #     client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
+    #     server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
     
     if interactive:
         print("Experiment is ready to start... enter exit to start")
