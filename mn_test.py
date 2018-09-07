@@ -95,10 +95,11 @@ backward={ 'delay': "50ms"}
 topoAsymetric = [
     # loss is in percoutage
     # 'delay': "20ms",
-    { 'bw': 2,  "loss": 1, "max_queue_size":1000, "use_htb": True, 
+    { 'bw': 2,  "loss": 0, "max_queue_size":1000, "use_htb": True, 
         'params1': forward, 'params2': backward
     },
-    { 'bw': 2, 'delay': "20ms", "loss": 20},
+    # { 'bw': 2, 'delay': "20ms", "loss": 20},
+    { 'bw': 2, 'delay': "20ms", "loss": 0},
 ]
 
 topoSymetric = [
@@ -259,11 +260,7 @@ def attach_filter(node):
     """
     Attach ebpf drop filter to interface
     """
-    # TODO should do it 
-    # s0-eth1
-    # s0-eth2
-    # eth0 is the first interface between server and gateway ?
-    ifname = node.name + "-eth0"
+    ifname = node.name + "-eth2"
 
     logging.info("attaching filter to node %r" % node)
 
@@ -279,6 +276,9 @@ def attach_filter(node):
     cmd = "tc filter add dev {ifname} ingress bpf obj {bytecode} section action direct-action".format(
             ifname=ifname,
             bytecode=EBPF_DROPPER_BYTECODE)
+
+    # to see the filters you have to run
+    # tc filter show dev gateway-eth2 ingress
 
     # print cmd
     out = node.cmd(cmd)
@@ -321,26 +321,13 @@ def runSingleExperiment(run, client, server, out, **kwargs):
     # res = client.cmd("mount -t debugfs none /sys/kernel/debug")
     
     # print("mounting folder res :", res)
-    # res = client.cmd("ls /root")
+    # res = client.cmd("ls /root")18-01.pdf
     # TODO problem is exec does not mount /sys/
     # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
     # print("kprobe_events :", res)
     # res = client.cmd("cat /etc/mtab")
     # print("mtab :", res)
     try: 
-        # iperf 3 version
-        # "Normally, the test data is sent from the client to the server,"
-        cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
-        log.info("starting %s" % cmd)
-        server_iperf = server.popen(cmd)
-        
-        # out, err = server_iperf.communicate()
-        # if err is not None:
-        if server_iperf.poll():
-            print("Failed to run ", cmd)
-            print("returned", server_iperf.returncode)
-            # print(err)
-            sys.exit(1)
 
         print("server_iperf ")
         # server.cmd("iperf3 -s --json --logfile '%s' &" % _out("server_iperf", number_of_paths, ".log"))
@@ -384,6 +371,19 @@ def runSingleExperiment(run, client, server, out, **kwargs):
                 logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
             )
 
+            cmd = "wget http://%s/%s -O /dev/null" 
+            cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
+            cmd = cmd % ("7.7.7.7", FILE_TO_TRANSFER)
+            # if not curl:
+                # before = datetime.datetime.now()
+                # raise Exception()
+                # print client.cmd( verbose=True)
+                # elapsed_ms = (datetime.datetime.now() - before).total_seconds()*1000
+            # else:
+            #     import re
+                # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
+                # elapsed_ms = float(elapsed_ms_str)*1000
+
             # out = client.monitor(timeoutms=2000)
             log.info(cmd)
             # CLI(net)
@@ -425,7 +425,6 @@ def runSingleExperiment(run, client, server, out, **kwargs):
         if check_reinject and client_check.returncode is None:
             client_check.terminate()
 
-        server_iperf.terminate()
         # net.stop()
 
 
@@ -456,7 +455,7 @@ def runExperiment(interactive, test, loss, **kwargs):
 
     if args.get("ebpfdrop"):
         print("attach_filter %r" % gateway)
-        attach_filter(server)
+        attach_filter(gateway)
 
 
     # there is probably a better way, but somehow we have to configure
@@ -464,6 +463,28 @@ def runExperiment(interactive, test, loss, **kwargs):
     # for i in range(0, number_of_paths):
     #     client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
     #     server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
+
+    # iperf 3 version
+    # "Normally, the test data is sent from the client to the server,"
+    # server.cmd()
+    # server.cmd("HTTP_PID=$!")
+
+    cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
+
+    # cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
+    # from francois
+    # cmd = "python -m SimpleHTTPServer 8000"
+    # server.cmd(cmd)
+    log.info("starting %s" % cmd)
+    server_iperf = server.popen(cmd)
+    
+    # out, err = server_iperf.communicate()
+    # if err is not None:
+    if server_iperf.poll():
+        print("Failed to run ", cmd)
+        print("returned", server_iperf.returncode)
+        # print(err)
+        sys.exit(1)
     
     if interactive:
         print("Experiment is ready to start... enter exit to start")
@@ -540,6 +561,7 @@ def runExperiment(interactive, test, loss, **kwargs):
     # server.cmd("kill %d" % (server_iperf.pid,))
     # server_iperf.terminate()
     # os.system('pkill -f \'iperf\'')
+    server_iperf.terminate()
 
 
     net.stop()

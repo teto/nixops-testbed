@@ -104,6 +104,15 @@ struct bpf_elf_map SEC("maps") map = {
 /* #define ECE 6 */
 /* #define CWR 7 */
 
+#define TCPHDR_FIN 0x01
+#define TCPHDR_SYN 0x02
+#define TCPHDR_RST 0x04
+#define TCPHDR_PSH 0x08
+#define TCPHDR_ACK 0x10
+#define TCPHDR_URG 0x20
+#define TCPHDR_ECE 0x40
+#define TCPHDR_CWR 0x80
+
 /* int get_flag(__u8 flags, int flag) { */
 /* 	return flags & (1 << flag); */
 /* } */
@@ -136,7 +145,7 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	if(!tcp)
 		return TC_ACT_OK;
 	__u16 *addr = (__u16 *) (&(tcp -> ack_seq) + 1);
-	/* tcp_flag_byte TCP_FLAG_PSH used with tcp_flag_word */
+	/* tcp_flag_byte TCPHDR_PSH used with tcp_flag_word */
 
 	/* u8 tcp_flag_byte(); Look at/taken from bcc/tools/tcpdrop.py */
 	/* __u8 flags = ((u_int8_t *)tcp)[13]; */
@@ -151,18 +160,43 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	/* __u64 flags = 0; */
 
 	/* print("tcp %d", TCPHDR_FIN); */
-	__u64 flags = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
-	/* __u64 flags = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1); */
 
-	/* bpf_debug("flag_word gives %u while flags2 gives %u\n", flags, flags); */
-	bpf_debug("flag_word gives %u while flags2 gives %u\n", flags, flags);
-	bpf_debug(">> SYN %x vs flags << 16 %x\n", TCP_FLAG_SYN, flags << 8);
-	flags = flags << 8;
+
+/* defined in linux #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) */ 
+
+	/* lspcu can show you endianness	Little Endian
+	 my vm is also Byte Order:          Little Endian 
+	 TCP_FLAG_* are defined as bigendian
+	 The load_xxx function does a bswap before returning the short/word/dword,
+	so the value in register will always be host endian
+	 */
+	/* TCPHDR_PSH = __constant_cpu_to_be32(0x00080000), 
+	TCPHDR_CWR = __constant_cpu_to_be32(0x00800000), */
+	__u8 flags = load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
+	/* __u64 flags2 = (__u64) load_half(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4); */
+	/* __u64 flags3 = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + sizeof(__be32 ) * 4); */
+	/* htonl(flags) */
+
+	/* flags2 = flags2 << 8; */
+	/* /1* __u8 tcpflags; *1/ */
+	/* /1* bpf_probe_read(&tcpflags, sizeof(tcpflags), &tcp_flag_byte(tcp)); *1/ */
+
+	/* /1* bpf_debug("flag_word gives %u while flags2 gives %u\n", flags, flags); *1/ */
+	/* bpf_debug("TOTO\n"); */
+	/* /1* bpf_debug("%u\n", tcp->ack_seq); *1/ */
+	/* bpf_debug("%x flags2 gives %x\n", TCPHDR_CWR, TCPHDR_PSH); /1* shows "8000 flags2 gives 800" *1/ */
+	/* bpf_debug("%x flags2 gives %x\n", flags, flags2); */
+	/* bpf_debug("%x while flags3 gives %x \n", flags, flags3); */
+	/* /1* bpf_debug(">> SYN %04x vs flags << 8 %04x\n", TCPHDR_SYN, flags << 8); *1/ */
+
+	/* bpf_debug("comparing %u flags2 gives %u and %u\n", TCPHDR_PSH & flags, TCPHDR_PSH & flags2, TCPHDR_PSH & flags3); */
+	/* bpf_debug("comparing %u flags2 gives %u and %u\n", TCPHDR_PSH & flags, TCPHDR_PSH & (flags >> 8), TCPHDR_PSH & (flags >> 16)); */
+	/* flags = flags << 8; */
 	/* __u64 flags = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) ); */
 	
 
 	/* if( tcp->syn ) { */
-	if( flags & TCP_FLAG_SYN) {
+	if( flags & TCPHDR_SYN) {
 		__u32 val = 0;
 		*seen = 0;
 		bpf_debug("RESET SEEN\n");
@@ -172,18 +206,18 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	// We here only handle the little endian case
         
         // fin is at the 1st position of the byte in little endian
-	if (0 && (flags & TCP_FLAG_FIN)) { // tail drop
-		bpf_debug("DROP, PSH: %x\n", flags & TCP_FLAG_PSH);
-                bpf_debug("DROP, FIN: %x\n", flags & TCP_FLAG_FIN);
+	if (0 && (flags & TCPHDR_FIN)) { // tail drop
+		bpf_debug("DROP, PSH: %x\n", flags & TCPHDR_PSH);
+                bpf_debug("DROP, FIN: %x\n", flags & TCPHDR_FIN);
 
 		return TC_ACT_SHOT;
 	}
-	if (!(flags & TCP_FLAG_SYN) && !*seen) {
+	if (!(flags & TCPHDR_SYN) && !*seen) {
 		__u8 off = ((__u8) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4) & 0xF0) >> 4;
 		int header_size = off*4;
 		int packet_len = skb -> len - (ETH_HLEN + sizeof(struct iphdr) + header_size);
 		//bpf_debug("HERE, LEN = %d\n", packet_len);
-		if(flags & TCP_FLAG_PSH) {
+		if(flags & TCPHDR_PSH ) {
 			bpf_debug("POTENTIALLY TAIL\n");
 			// this is potentially the tail
 			// check that is is the tail by analyzing the end of the packet to find the DROPME tag
@@ -197,9 +231,9 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 			char D = load_byte(skb, skb -> len - 7);
 			char R = load_byte(skb, skb -> len - 6);
 			char O = load_byte(skb, skb -> len - 5);
-                        char P = load_byte(skb, skb -> len - 4);
-                        char M = load_byte(skb, skb -> len - 3);
-                        char E = load_byte(skb, skb -> len - 2);
+			char P = load_byte(skb, skb -> len - 4);
+			char M = load_byte(skb, skb -> len - 3);
+			char E = load_byte(skb, skb -> len - 2);
 			if (!(D == 'D' && R == 'R' && O == 'O' && P == 'P' && M == 'M' && E == 'E'))
 				return TC_ACT_OK;
 			// we are now sure that it is the tail that we want to drop
@@ -211,6 +245,7 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
                         __u32 b4 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 3);
 			////// END LOAD IP ADDR BYTE PER BYTE 
 			__u32 daddr = __constant_be32_to_cpu(b1 + b2 + b3 + b4/*iphdr -> daddr*/);
+			bpf_debug("TOTO\n");
 			bpf_debug("TAIL DROP, %d, daddr = %x\n", packet_len, daddr);
 			__u32 val = 1;
 			__u32 val2 = 2;//(__u32) daddr;

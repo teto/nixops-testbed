@@ -60,6 +60,7 @@ let
     mptcp-local-stable.dev
     # will need to learn how to use it
     tmux
+    webfs
     # (python.withPackages(ps: with ps; [ mininet-python ] ))
   ];
 
