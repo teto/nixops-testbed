@@ -94,16 +94,7 @@ struct bpf_elf_map SEC("maps") map = {
 #define bpf_debug(fmt, ...) { } while (0)
 #endif
 
-/* TCPHDR_FIN */
-/* #define FIN 0 */
-/* #define SYN 1 */
-/* #define RST 2 */
-/* #define PSH 3 */
-/* #define ACK 4 */
-/* #define URG 5 */
-/* #define ECE 6 */
-/* #define CWR 7 */
-
+/* copied from include/linux/tcp.h */
 #define TCPHDR_FIN 0x01
 #define TCPHDR_SYN 0x02
 #define TCPHDR_RST 0x04
@@ -147,22 +138,10 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	__u16 *addr = (__u16 *) (&(tcp -> ack_seq) + 1);
 	/* tcp_flag_byte TCPHDR_PSH used with tcp_flag_word */
 
-	/* u8 tcp_flag_byte(); Look at/taken from bcc/tools/tcpdrop.py */
-	/* __u8 flags = ((u_int8_t *)tcp)[13]; */
-
-	/* generates an error
-	 * load_byte/half/word
-	 * */
-	/* __be32 flags = *tcp_flag_word(tcp); 
-	 * load_byte　c la position dans le SKB */
-	/* __u64 flags = load_byte(skb, tcp_flag_word(tcp) - skb); */
-	/* __u64 flags = load_byte(skb, ((__u8 *)tcp)[13]); */
-	/* __u64 flags = 0; */
-
 	/* print("tcp %d", TCPHDR_FIN); */
 
 
-/* defined in linux #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) */ 
+	/* defined in linux #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) */ 
 
 	/* lspcu can show you endianness	Little Endian
 	 my vm is also Byte Order:          Little Endian 
@@ -170,33 +149,16 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	 The load_xxx function does a bswap before returning the short/word/dword,
 	so the value in register will always be host endian
 	 */
-	/* TCPHDR_PSH = __constant_cpu_to_be32(0x00080000), 
-	TCPHDR_CWR = __constant_cpu_to_be32(0x00800000), */
 	__u8 flags = load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
-	/* __u64 flags2 = (__u64) load_half(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4); */
-	/* __u64 flags3 = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + sizeof(__be32 ) * 4); */
-	/* htonl(flags) */
 
-	/* flags2 = flags2 << 8; */
-	/* /1* __u8 tcpflags; *1/ */
-	/* /1* bpf_probe_read(&tcpflags, sizeof(tcpflags), &tcp_flag_byte(tcp)); *1/ */
-
-	/* /1* bpf_debug("flag_word gives %u while flags2 gives %u\n", flags, flags); *1/ */
-	/* bpf_debug("TOTO\n"); */
-	/* /1* bpf_debug("%u\n", tcp->ack_seq); *1/ */
-	/* bpf_debug("%x flags2 gives %x\n", TCPHDR_CWR, TCPHDR_PSH); /1* shows "8000 flags2 gives 800" *1/ */
-	/* bpf_debug("%x flags2 gives %x\n", flags, flags2); */
-	/* bpf_debug("%x while flags3 gives %x \n", flags, flags3); */
-	/* /1* bpf_debug(">> SYN %04x vs flags << 8 %04x\n", TCPHDR_SYN, flags << 8); *1/ */
-
-	/* bpf_debug("comparing %u flags2 gives %u and %u\n", TCPHDR_PSH & flags, TCPHDR_PSH & flags2, TCPHDR_PSH & flags3); */
-	/* bpf_debug("comparing %u flags2 gives %u and %u\n", TCPHDR_PSH & flags, TCPHDR_PSH & (flags >> 8), TCPHDR_PSH & (flags >> 16)); */
-	/* flags = flags << 8; */
-	/* __u64 flags = (__u64) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) ); */
+	__u32 seq = load_half(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
+	__u32 seq2 = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
+	bpf_debug("seen tcpseq %u / %u \n", seq, seq2);
 	
+	if (DROP_SEQ && seq == ) {
+	}
 
-	/* if( tcp->syn ) { */
-	if( flags & TCPHDR_SYN) {
+	if(flags & TCPHDR_SYN) {
 		__u32 val = 0;
 		*seen = 0;
 		bpf_debug("RESET SEEN\n");
