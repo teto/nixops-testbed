@@ -47,7 +47,8 @@ clang  -O2 -emit-llvm -c test_ebpf_tc.c -v -I${dev}/build/dest -I${dev}/build/in
 /* for offsetof */
 #include <stddef.h> 
 
-
+const int DROP_SEQ  = 1;
+const int SEQ_TO_DROP  = 10;
 
 #define SEC(NAME) __attribute__((section(NAME), used))
 #define PIN_GLOBAL_NS		2
@@ -151,11 +152,16 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	 */
 	__u8 flags = load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
 
-	__u32 seq = load_half(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
-	__u32 seq2 = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
-	bpf_debug("seen tcpseq %u / %u \n", seq, seq2);
 	
-	if (DROP_SEQ && seq == ) {
+	/* TODO drop it only the first time ! */
+	if (DROP_SEQ && seq == SEQ_TO_DROP) {
+		__u32 seq = load_half(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
+		__u32 seq2 = load_word(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
+
+		bpf_debug("seen tcpseq %u / %u \n", seq, seq2);
+
+		return TC_ACT_SHOT;
+
 	}
 
 	if(flags & TCPHDR_SYN) {
