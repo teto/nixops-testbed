@@ -53,3 +53,8 @@ kernel command line (/proc/cmdline) and collects module parameters
 when it loads a module, so the kernel command line can be used for
 loadable modules too.
 
+
+
+== HOW TO RUN THE TESTS == 
+
+

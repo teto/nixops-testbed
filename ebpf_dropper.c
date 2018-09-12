@@ -26,6 +26,16 @@ clang  -O2 -emit-llvm -c test_ebpf_tc.c -v -I${dev}/build/dest -I${dev}/build/in
            TC_ACT_RECLASSIFY (1) , will terminate the packet processing
            pipeline and start classification from the beginning
            else , everything else is an unspecified return code<Paste>
+ 
+
+	BPF_ANY
+			Create a new element or update an existing element.
+
+	BPF_NOEXIST
+			Create a new element only if it did not exist.
+
+	BPF_EXIST
+			Update an existing element.
  */
 
 #include <linux/bpf.h>
@@ -53,6 +63,7 @@ const int SEQ_TO_DROP  = 10;
 #define SEC(NAME) __attribute__((section(NAME), used))
 #define PIN_GLOBAL_NS		2
 
+/* this should be fetched from #include <iproute2/bfp_elf.h> */
 struct bpf_elf_map {
 	__u32 type;
 	__u32 size_key;
@@ -62,14 +73,6 @@ struct bpf_elf_map {
 	__u32 id;
 	__u32 pinning;
 };
-
-/* copy of 'struct ethhdr' without __packed */
-/* struct eth_hdr { */
-/* 	unsigned char   h_dest[ETH_ALEN]; */
-/* 	unsigned char   h_source[ETH_ALEN]; */
-/* 	unsigned short  h_proto; */
-/* }; */
-
 
 struct bpf_elf_map SEC("maps") map = {
         .type = BPF_MAP_TYPE_ARRAY,
@@ -83,8 +86,8 @@ struct bpf_elf_map SEC("maps") map = {
 #define DEBUG 1
 #ifdef  DEBUG
 /* Only use this for debug output. Notice output from bpf_trace_printk()
- *  * end-up in /sys/kernel/debug/tracing/trace_pipe
- *   */
+ * end-up in /sys/kernel/debug/tracing/trace_pipe
+ **/
 #define bpf_debug(fmt, ...)						\
 			({							\
 			char ____fmt[] = fmt;				\
@@ -105,10 +108,6 @@ struct bpf_elf_map SEC("maps") map = {
 #define TCPHDR_ECE 0x40
 #define TCPHDR_CWR 0x80
 
-/* int get_flag(__u8 flags, int flag) { */
-/* 	return flags & (1 << flag); */
-/* } */
-
 /* TCPHDR_FIN would be undeclared */
 /* ETH_HLEN defined in libc */
 
@@ -123,7 +122,7 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	/* TODO rename into th */
 	struct tcphdr *tcp = (struct tcphdr *) skb + (ETH_HLEN + sizeof(struct iphdr));
 	int key = 0, key2 = 1;
-	__u32 *seen;
+	__u32 *seen;	/* boolean set to true when tail was seen */
 	seen = bpf_map_lookup_elem(&map, &key);
 	if(!seen) {
 		__u32 val = 0;
@@ -136,14 +135,9 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 
 	if(!tcp)
 		return TC_ACT_OK;
-	__u16 *addr = (__u16 *) (&(tcp -> ack_seq) + 1);
 	/* tcp_flag_byte TCPHDR_PSH used with tcp_flag_word */
-
 	/* print("tcp %d", TCPHDR_FIN); */
-
-
 	/* defined in linux #define tcp_flag_word(tp) ( ((union tcp_word_hdr *)(tp))->words [3]) */ 
-
 	/* lspcu can show you endianness	Little Endian
 	 my vm is also Byte Order:          Little Endian 
 	 TCP_FLAG_* are defined as bigendian
@@ -153,6 +147,26 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 	__u8 flags = load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4 + 1);
 
 	
+	if(flags & TCPHDR_SYN) {
+		/* upon seeing a syn, forgets about the seen drop (i.e., new XP) */
+		__u32 val = 0;
+		*seen = 0;
+		bpf_debug("Resets seen\n");
+		bpf_map_update_elem(&map, &key, &val, BPF_EXIST);
+		bpf_map_update_elem(&map, &key2, &val, BPF_ANY);
+	}
+	// We here only handle the little endian case
+        
+
+	/* if (0 && (flags & TCPHDR_FIN)) { // tail drop */
+	/* 	bpf_debug("DROP, PSH: %x\n", flags & TCPHDR_PSH); */
+	/* 	bpf_debug("DROP, FIN: %x\n", flags & TCPHDR_FIN); */
+
+	/* 	return TC_ACT_SHOT; */
+	/* } */
+
+
+
 	/* TODO drop it only the first time ! */
 	if (DROP_SEQ && seq == SEQ_TO_DROP) {
 		__u32 seq = load_half(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, seq));
@@ -161,25 +175,8 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 		bpf_debug("seen tcpseq %u / %u \n", seq, seq2);
 
 		return TC_ACT_SHOT;
-
 	}
 
-	if(flags & TCPHDR_SYN) {
-		__u32 val = 0;
-		*seen = 0;
-		bpf_debug("RESET SEEN\n");
-		bpf_map_update_elem(&map, &key, &val, BPF_EXIST);
-		bpf_map_update_elem(&map, &key2, &val, BPF_ANY);
-	}
-	// We here only handle the little endian case
-        
-        // fin is at the 1st position of the byte in little endian
-	if (0 && (flags & TCPHDR_FIN)) { // tail drop
-		bpf_debug("DROP, PSH: %x\n", flags & TCPHDR_PSH);
-                bpf_debug("DROP, FIN: %x\n", flags & TCPHDR_FIN);
-
-		return TC_ACT_SHOT;
-	}
 	if (!(flags & TCPHDR_SYN) && !*seen) {
 		__u8 off = ((__u8) load_byte(skb, ETH_HLEN + sizeof(struct iphdr) + offsetof(struct tcphdr, ack_seq) + 4) & 0xF0) >> 4;
 		int header_size = off*4;
@@ -206,20 +203,21 @@ SEC("action") int handle_ingress(struct __sk_buff *skb)
 				return TC_ACT_OK;
 			// we are now sure that it is the tail that we want to drop
 			struct iphdr *iphdr = (struct iphdr *) skb + ETH_HLEN;
+
 			////// LOAD IP ADDR BYTE PER BYTE
+			// TODO use load_half/long instead ?
 			__u32 b1 = ((__u32) load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr)) << 24);
-                        __u32 b2 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 1) << 16;
-                        __u32 b3 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 2) << 8;
-                        __u32 b4 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 3);
+					__u32 b2 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 1) << 16;
+					__u32 b3 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 2) << 8;
+					__u32 b4 = load_byte(skb, ETH_HLEN + offsetof(struct iphdr, daddr) + 3);
 			////// END LOAD IP ADDR BYTE PER BYTE 
 			__u32 daddr = __constant_be32_to_cpu(b1 + b2 + b3 + b4/*iphdr -> daddr*/);
 			bpf_debug("TOTO\n");
 			bpf_debug("TAIL DROP, %d, daddr = %x\n", packet_len, daddr);
 			__u32 val = 1;
-			__u32 val2 = 2;//(__u32) daddr;
 			*seen = 1;
-                	bpf_map_update_elem(&map, &key, &val, BPF_EXIST);
-                        bpf_map_update_elem(&map, &key2, &daddr, BPF_ANY);
+			bpf_map_update_elem(&map, &key, &val, BPF_EXIST);
+			bpf_map_update_elem(&map, &key2, &daddr, BPF_ANY);
 			return TC_ACT_SHOT;
 		} else {
 			//bpf_debug("LET PASS LENGTH %d, header_size = %d (%d*4)\n", packet_len, header_size, header_size/4);

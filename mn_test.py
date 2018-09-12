@@ -626,6 +626,9 @@ if __name__ == '__main__':
     # TODO use iperf command instead
     run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
 
+
+    run_sysctl("net.mptcp.mptcp_aggressive_dupack", 1)
+
     # if args.number_of_subflows:
     #     number_of_paths = [int(args.number_of_subflows)]
     # else:
