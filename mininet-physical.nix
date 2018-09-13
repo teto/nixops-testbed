@@ -18,7 +18,7 @@
     {
     deployment.targetEnv = "libvirtd";
     deployment.libvirtd = {
-      baseImageSize = 12; # GB
+      baseImageSize = 14; # GB
       memorySize = 2048; # MB
 
       # TODO keep for later

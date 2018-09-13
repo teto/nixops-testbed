@@ -388,11 +388,29 @@ def runSingleExperiment(run, client, server, out, **kwargs):
             log.info(cmd)
             # CLI(net)
             out = client.cmdPrint(cmd)
+            # import re
+            # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
+
+            elapsed_ms_str = out[2:].rstrip()   # replace("> ", ""))
+            # print("elapsed_ms_str", elapsed_ms_str)
+            elapsed_ms = float(elapsed_ms_str)*1000
+
+            print("elapsed_ms", elapsed_ms)
+            import csv
+            with open('.csv', 'ab') as csvfile:
+                spamwriter = csv.writer(csvfile, 
+                        # delimiter=' ',
+                        # quotechar='|', quoting=csv.QUOTE_MINIMAL
+                        )
+
+                # write avec ou sans dupack puis la valeur
+                spamwriter.writerow([ int(True), elapsed_ms])
+                # spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
             # out = client.sendCmd(cmd)
             # client.monitor()
 
             # out, err, exit = errFail(cmd)
-            print("process output: %s", out)
+            # print("process output: %s", out)
             # if exit != 0:
             #     print("Process exited with %d : %d", exit)
             #     print("An error happened: %s", err)
