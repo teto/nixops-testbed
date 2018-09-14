@@ -95,7 +95,7 @@ backward={ 'delay': "50ms"}
 topoAsymetric = [
     # loss is in percoutage
     # 'delay': "20ms",
-    { 'bw': 2,  "loss": 0, "max_queue_size":1000, "use_htb": True, 
+    { 'bw': 2,  "loss": 10, "max_queue_size":1000, "use_htb": True, 
         'params1': forward, 'params2': backward
     },
     # { 'bw': 2, 'delay': "20ms", "loss": 20},
@@ -128,12 +128,181 @@ topo = topoAsymetric
 #               params1=par1,
 #               params2=par2)
 
+available_tests = [
+    DackTest
+    # PrevenantTest
+]
+
+# we don't have their RBS scheduler
+# os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
+def run_sysctl(key, value, **popenargs):
+    # todo parse output of check_output instead
+    # subprocess.check_call(["sysctl","-w","%s=%s" % (key, value)], shell=True)
+    subprocess.check_call(["sysctl -w %s='%s'" % (key, value)], shell=True)
 
 
-def _gout(out, *args):
-    """ Use it to name files"""
-    suffix = '_'.join(map(str, args))
-    return os.path.join(out, suffix )
+class Test:
+    def __init__(self, name, topo, aggr_dupack=0, scheduler="default",
+            path_manager="fullmesh"
+        ):
+        self.name = name
+        # a list of started processes one should check on error ?
+        self._popens = []
+        run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
+        run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
+        run_sysctl("net.mptcp.mptcp_aggressive_dupack", 1)
+        run_sysctl('net.mptcp.mptcp_path_manager', path_manager)
+        run_sysctl("net.mptcp.mptcp_scheduler", scheduler)
+
+    def _out(*args):
+        """ Use it to name files"""
+        suffix = '_'.join(map(str, args))
+        return os.path.join(out, suffix )
+
+
+    def runExperiments(net, 
+        interactive, test, loss,
+        capture=False,
+        **kwargs
+        ):
+        """
+        Run a batch of experiments
+        """
+
+        global args
+        client = net.get('client')
+        server = net.get('server')
+        gateway = net.get('gateway')
+        # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
+
+        if args.get("ebpfdrop"):
+            print("attach_filter %r" % gateway)
+            attach_filter(gateway)
+
+
+        # there is probably a better way, but somehow we have to configure
+        # the IP adresses
+        # for i in range(0, number_of_paths):
+        #     client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
+        #     server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
+
+        # iperf 3 version
+        # "Normally, the test data is sent from the client to the server,"
+        # server.cmd()
+        # server.cmd("HTTP_PID=$!")
+
+        server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
+
+        # cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
+        # from francois
+        # cmd = "python -m SimpleHTTPServer 8000"
+        # server.cmd(cmd)
+        log.info("starting %s" % server_cmd)
+        server_iperf = server.popen(server_cmd)
+        
+        # out, err = server_iperf.communicate()
+        # if err is not None:
+        if server_iperf.poll():
+            print("Failed to run ", cmd)
+            print("returned", server_iperf.returncode)
+            # print(err)
+            sys.exit(1)
+        
+        if interactive:
+            print("Experiment is ready to start... enter exit to start")
+            print("client ping 10.0.0.2 -c 4")
+            res = None
+            res = CLI(net)
+            # if res:
+            #     net.stop()
+            #     sys.exit(1)
+
+            print("RESULT %r" % (res))
+
+        if args.get("capture"):
+            print("Capturing packets...")
+            print('tshark -r out/client_2.pcap -z "conv,mptcp"')
+            # TODO use popen instead ?
+
+            # nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
+            # todo use dumpcap instead
+            # dumpcap -q -w
+            # for tcpdump use -U
+            cmd = ["tcpdump", "-i", "any", "-w", _out("client", number_of_paths, ".pcapng") ]
+            log.info("starting %s" % cmd)
+            # client.cmd(cmd,)
+
+            # print("CWD=", os.getcwd())
+            client_tshark = client.popen(cmd, universal_newlines=True,)
+            # # Check if child process has terminated. Set and return returncode attribute.
+            
+            # print("client tshark retcode", client_tshark.returncode)
+            if client_tshark.poll():
+                print("failed")
+
+            cmd = ["tcpdump", "-i", "any", "-w", _out("server", number_of_paths, ".pcapng") ]
+            server_tshark = server.popen(cmd, universal_newlines=True,)
+            print("server popen")
+            
+            if server_tshark.poll():
+                print("iperf server failed")
+
+            # let tshark the time to setup itself
+            os.system("sleep 5")
+        
+
+                
+        # run_tests()
+        # TODO move the loop to here
+        for run in range(kwargs.get("runs", 1)):
+            runSingleExperiment(run, client, server, **kwargs)
+
+        if args.get("capture"):
+            print("killing dumpcap")
+            # out, err = client_tshark.communicate()
+            # print(" out/err ", out, err)
+            # print(" retcode ", client_tshark.returncode)
+            client_tshark.terminate()
+            # out, err = server_tshark.communicate()
+            print("client retcode ", client_tshark.returncode)
+            # kill
+            server_tshark.terminate()
+
+            print("server retcode ", server_tshark.returncode)
+            # server_tshark.terminate()
+            # os.system('pkill -f \'tshark\'')
+
+            
+        if interactive:
+            print ("Experiment finished... enter exit to finish")
+            # CLI(net)
+        
+        # lets wait a moment
+        sleep(3)
+        # and ensure iperf is finished :-)
+        # server.cmd("kill %d" % (server_iperf.pid,))
+        # server_iperf.terminate()
+        # os.system('pkill -f \'iperf\'')
+        server.terminate()
+
+
+        net.stop()
+
+    def run_xp(self, run):
+        pass
+
+
+class DackTest:
+    def __init__(self, *args):
+        super().__init__("Dack", topo)
+
+    # def run_xp():
+
+
+# class PrevenantTest:
+#     def __init__(self):
+#         subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
+
 
 # net = None
 
@@ -397,7 +566,7 @@ def runSingleExperiment(run, client, server, out, **kwargs):
 
             print("elapsed_ms", elapsed_ms)
             import csv
-            with open('.csv', 'ab') as csvfile:
+            with open(_out('dl_times', '.csv'), 'ab') as csvfile:
                 spamwriter = csv.writer(csvfile, 
                         # delimiter=' ',
                         # quotechar='|', quoting=csv.QUOTE_MINIMAL
@@ -446,9 +615,51 @@ def runSingleExperiment(run, client, server, out, **kwargs):
         # net.stop()
 
 
-def runExperiment(interactive, test, loss, **kwargs):
+  
+if __name__ == '__main__':
+
+    # 
+    print("To clean run `mn -c`")
+    print("You might want to run `nix-serve  -p 8080`")
+    print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--file", help="The file to download",)
+    parser.add_argument("-n", "--number-of-paths", type=int, default=2, help="The number of subflows")
+    parser.add_argument("-r", "--reinjections", type=bool, default=False, help="Check for reinjections")
+    parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'],
+        help="Running in debug mode", default='info')
+    parser.add_argument("-t", "--test", choices=["iperf3-cdf"], help="test to run", default="iperf3-cdf")
+    parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
+    parser.add_argument("-i", "--interactive", action="store_true",
+        help="Waiting in command line interface", default=False)
+    parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
+    parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
+    parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
+    parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False, help="Wether to attach our filter")
+    parser.add_argument("test", choices=list(map(lambda x: x.name, available_tests)), action="store", 
+        help="Test to run")
+    # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
+    # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
+
+    # subparsers = parser.add_subparsers(dest="subparser_name", title="Subparsers",
+    #     help='sub-command help')
+
+    # subparser_csv = subparsers.add_parser('pcap2csv', parents=[pcap_parser],
+    #     help='Converts pcap to a csv file')
 
     global args
+    largs, unknown_args = parser.parse_known_args()
+    args = vars(largs)
+
+    setLogLevel(largs.debug)
+
+    log.setLevel(logging.DEBUG)
+
+    print("CWD=", os.getcwd())
+    print("creating %s" % largs.out)
+    subprocess.check_call("mkdir -p %s" % largs.out, shell=True)
+    
     _out = functools.partial(_gout, kwargs.get('out'))
     number_of_paths = kwargs.get('number_of_paths', 1)
 
@@ -466,186 +677,16 @@ def runExperiment(interactive, test, loss, **kwargs):
     # installs IPs
     my_topo.hook(net)
     net.start()
-    client = net.get('client')
-    server = net.get('server')
-    gateway = net.get('gateway')
-    # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
 
-    if args.get("ebpfdrop"):
-        print("attach_filter %r" % gateway)
-        attach_filter(gateway)
+    # test
+    test = globals()[args.test_name]("toto")
 
-
-    # there is probably a better way, but somehow we have to configure
-    # the IP adresses
-    # for i in range(0, number_of_paths):
-    #     client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
-    #     server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
-
-    # iperf 3 version
-    # "Normally, the test data is sent from the client to the server,"
-    # server.cmd()
-    # server.cmd("HTTP_PID=$!")
-
-    cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
-
-    # cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
-    # from francois
-    # cmd = "python -m SimpleHTTPServer 8000"
-    # server.cmd(cmd)
-    log.info("starting %s" % cmd)
-    server_iperf = server.popen(cmd)
-    
-    # out, err = server_iperf.communicate()
-    # if err is not None:
-    if server_iperf.poll():
-        print("Failed to run ", cmd)
-        print("returned", server_iperf.returncode)
-        # print(err)
-        sys.exit(1)
-    
-    if interactive:
-        print("Experiment is ready to start... enter exit to start")
-        print("client ping 10.0.0.2 -c 4")
-        res = None
-        res = CLI(net)
-        # if res:
-        #     net.stop()
-        #     sys.exit(1)
-
-        print("RESULT %r" % (res))
-
-    if args.get("capture"):
-        print("Capturing packets...")
-        print('tshark -r out/client_2.pcap -z "conv,mptcp"')
-        # TODO use popen instead ?
-
-# nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
-# todo use dumpcap instead
-# dumpcap -q -w
-        # for tcpdump use -U
-        cmd = ["tcpdump", "-i", "any", "-w", _out("client", number_of_paths, ".pcapng") ]
-        log.info("starting %s" % cmd)
-        # client.cmd(cmd,)
-
-        # print("CWD=", os.getcwd())
-        client_tshark = client.popen(cmd, universal_newlines=True,)
-        # # Check if child process has terminated. Set and return returncode attribute.
-        
-        # print("client tshark retcode", client_tshark.returncode)
-        if client_tshark.poll():
-            print("failed")
-
-        cmd = ["tcpdump", "-i", "any", "-w", _out("server", number_of_paths, ".pcapng") ]
-        server_tshark = server.popen(cmd, universal_newlines=True,)
-        print("server popen")
-        
-        if server_tshark.poll():
-            print("iperf server failed")
-
-        # let tshark the time to setup itself
-        os.system("sleep 5")
-    
-
-            
-    # run_tests()
-    # TODO move the loop to here
-    for run in range(kwargs.get("runs", 1)):
-        runSingleExperiment(run, client, server, **kwargs)
-
-    if args.get("capture"):
-        print("killing dumpcap")
-        # out, err = client_tshark.communicate()
-        # print(" out/err ", out, err)
-        # print(" retcode ", client_tshark.returncode)
-        client_tshark.terminate()
-        # out, err = server_tshark.communicate()
-        print("client retcode ", client_tshark.returncode)
-        # kill
-        server_tshark.terminate()
-
-        print("server retcode ", server_tshark.returncode)
-        # server_tshark.terminate()
-        # os.system('pkill -f \'tshark\'')
-
-        
-    if interactive:
-        print ("Experiment finished... enter exit to finish")
-        # CLI(net)
-    
-    # lets wait a moment
-    sleep(3)
-    # and ensure iperf is finished :-)
-    # server.cmd("kill %d" % (server_iperf.pid,))
-    # server_iperf.terminate()
-    # os.system('pkill -f \'iperf\'')
-    server_iperf.terminate()
-
-
-    net.stop()
-    # sleep(1)
-  
-if __name__ == '__main__':
-
-    # 
-    print("To clean run `mn -c`")
-    print("You might want to run `nix-serve  -p 8080`")
-    print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--file", help="The file to download",)
-    parser.add_argument("-n", "--number-of-paths", type=int, default=2, help="The number of subflows")
-    parser.add_argument("-r", "--reinjections", type=bool, default=False, help="Check for reinjections")
-    parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'], help="Running in debug mode", default='info')
-    parser.add_argument("-t", "--test", choices=["iperf3-cdf"], help="test to run", default="iperf3-cdf")
-    parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
-    parser.add_argument("-i", "--interactive", action="store_true", help="Waiting in command line interface", default=False)
-    parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
-    parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
-    parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
-    parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False, help="Wether to attach our filter")
-    # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
-    # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
-
-    global args
-    largs, unknown_args = parser.parse_known_args()
-    args = vars(largs)
-
-    setLogLevel(largs.debug)
-
-    log.setLevel(logging.DEBUG)
-
-    print("CWD=", os.getcwd())
-    print("creating %s" % largs.out)
-    subprocess.check_call("mkdir -p %s" % largs.out, shell=True)
-    
     # if args.debug:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
     # else:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=0')
     # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
-    # we don't have their RBS scheduler
-    # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
-    def run_sysctl(key, value, **popenargs):
-        # todo parse output of check_output instead
-        # subprocess.check_call(["sysctl","-w","%s=%s" % (key, value)], shell=True)
-        subprocess.check_call(["sysctl -w %s='%s'" % (key, value)], shell=True)
-
-    sched_name = "prevenant"
-    # sched_name = "default"
-    # run_sysctl("net.mptcp.mptcp_scheduler", sched_name)
-
-    run_sysctl('net.mptcp.mptcp_path_manager', "fullmesh")
-
-    # TODO faut que je fasse echouer l'appel quand le sysctl est pas bon (au lieu d'un message d'erreur)
-    # subprocess.check_call('sysctl -w net.mptcp.mptcp_aggressive_dupack=', shell=True)
-
-    # TODO use iperf command instead
-    run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
-
-
-    run_sysctl("net.mptcp.mptcp_aggressive_dupack", 1)
 
     # if args.number_of_subflows:
     #     number_of_paths = [int(args.number_of_subflows)]
