@@ -128,10 +128,6 @@ topo = topoAsymetric
 #               params1=par1,
 #               params2=par2)
 
-available_tests = [
-    DackTest
-    # PrevenantTest
-]
 
 # we don't have their RBS scheduler
 # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
@@ -154,11 +150,72 @@ class Test:
         run_sysctl('net.mptcp.mptcp_path_manager', path_manager)
         run_sysctl("net.mptcp.mptcp_scheduler", scheduler)
 
+    def start_daemon(self, node, cmd):
+
+        log.info("starting %s" % cmd)
+        proc = node.popen(cmd)
+
+        if server_iperf.poll():
+            print("Failed to run ", cmd)
+            print("returned", server_iperf.returncode)
+            # print(err)
+            sys.exit(1)
+
+
+    def start_tcpdump(self, node, **kwargs):
+
+
+    def start_tshark(self, node, **kwargs):
+        pass
+
+    def start_iperf(self, node, **kwargs):
+
+        cmd = "iperf3 -s --json --logfile=%s" % (self._out("server_iperf", number_of_paths, ".log"),)
+        # server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
+        self.start_daemon(node, )
+
+    def start_webfs(self, node, **kwargs):
+
+        server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
+        self.start_daemon()
+
+    def start_webfs(self, node, **kwargs):
+        server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
+        self.start_daemon()
+
+    # setup as an abstract to implement
+    @
+    def setup(self,):
+        pass
+
     def _out(*args):
         """ Use it to name files"""
         suffix = '_'.join(map(str, args))
         return os.path.join(out, suffix )
 
+    # def parser():
+        # 
+        # argparse.ArgumentParser
+
+    def tearDown(self):
+        logging.info("Tearing down")
+        for proc in self._popens:
+
+            print("retcode ", proc.returncode)
+            if proc.returncode is None:
+                proc.terminate()
+            # # print("killing dumpcap")
+            # # out, err = client_tshark.communicate()
+            # # print(" out/err ", out, err)
+            # # print(" retcode ", client_tshark.returncode)
+            # client_tshark.terminate()
+            # # out, err = server_tshark.communicate()
+            # # kill
+            # server_tshark.terminate()
+
+            print("server retcode ", proc.returncode)
+            # server_tshark.terminate()
+            # os.system('pkill -f \'tshark\'')
 
     def runExperiments(net, 
         interactive, test, loss,
@@ -179,21 +236,10 @@ class Test:
             print("attach_filter %r" % gateway)
             attach_filter(gateway)
 
-
-        # there is probably a better way, but somehow we have to configure
-        # the IP adresses
-        # for i in range(0, number_of_paths):
-        #     client.cmd('ifconfig client-eth' + str(i) + ' 1' + str(i) + '.0.0.1')
-        #     server.cmd('ifconfig server-eth' + str(i) + ' 1' + str(i) + '.0.0.2')
-
         # iperf 3 version
         # "Normally, the test data is sent from the client to the server,"
-        # server.cmd()
-        # server.cmd("HTTP_PID=$!")
 
-        server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
 
-        # cmd = "iperf3 -s --json --logfile=%s" % (_out("server_iperf", number_of_paths, ".log"),)
         # from francois
         # cmd = "python -m SimpleHTTPServer 8000"
         # server.cmd(cmd)
@@ -228,7 +274,7 @@ class Test:
             # todo use dumpcap instead
             # dumpcap -q -w
             # for tcpdump use -U
-            cmd = ["tcpdump", "-i", "any", "-w", _out("client", number_of_paths, ".pcapng") ]
+            cmd = ["tcpdump", "-i", "any", "-w", self._out("client", number_of_paths, ".pcapng") ]
             log.info("starting %s" % cmd)
             # client.cmd(cmd,)
 
@@ -288,8 +334,150 @@ class Test:
 
         net.stop()
 
-    def run_xp(self, run):
-        pass
+    # def run_xp(self, run):
+    #     pass
+
+    def runSingleExperiment(run, client, server, out, **kwargs):
+        # in iperf3, the client sends the data so...
+
+        global net
+        _out = functools.partial(_gout, out)
+
+        reinject_out = _out("check", run, ".csv")
+        number_of_paths = kwargs.get('number_of_paths')
+        # check_reinject = kwargs.get("")
+        check_reinject = False
+        print("reinject_out=", reinject_out)
+
+        # sendCmd returns immediately while cmd waits for output
+        # res = client.cmd("ls /sys")
+        # res = client.cmd("mount -t debugfs none /sys/kernel/debug")
+        
+        # print("mounting folder res :", res)
+        # res = client.cmd("ls /root")18-01.pdf
+        # TODO problem is exec does not mount /sys/
+        # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
+        # print("kprobe_events :", res)
+        # res = client.cmd("cat /etc/mtab")
+        # print("mtab :", res)
+        try: 
+
+            print("server_iperf ")
+            # server.cmd("iperf3 -s --json --logfile '%s' &" % _out("server_iperf", number_of_paths, ".log"))
+            # server_iperf.poll()
+            # TODO get results else it might get dirty
+            with open(reinject_out, "w+") as fd:
+
+                if check_reinject:
+                    print("launch check_reinject")
+                    client_check = client.popen(
+                    # client_check = subprocess.Popen(
+                        ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
+                        # might be a problem
+                        stdout=fd,
+                        universal_newlines=True,
+                        bufsize=0
+                    )
+                    if client_check.returncode is not None:
+                        print("failed to start ", client_check.returncode)
+                    # out, err = client_check.communicate()
+                    print("launched check_reinject with pid", client_check.pid)
+
+                # if err is not None:
+                #     print("Failed running with returncode=", client_check.returncode)
+                #     print(err)
+                #     break
+
+                # assert err == 0
+
+                cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
+                    serverIP=server.IP(),   # seems to work
+                    # serverIP="10.0.0.2",
+                    # dataAmount="-n " + dataAmount if FILE_TO_TRANSFER is not None else "",
+                    dataAmount="",
+                    # Generated by gen_file
+                    # must finish with a string "DROPME" so that ebpfdropper can recognize and 
+                    # drop it
+                    fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
+                    # fromFile=args.file "",
+                    # paths=number_of_paths
+                    logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
+                )
+
+                cmd = "wget http://%s/%s -O /dev/null" 
+                cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
+                cmd = cmd % ("7.7.7.7", FILE_TO_TRANSFER)
+                # if not curl:
+                    # before = datetime.datetime.now()
+                    # raise Exception()
+                    # print client.cmd( verbose=True)
+                    # elapsed_ms = (datetime.datetime.now() - before).total_seconds()*1000
+                # else:
+                #     import re
+                    # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
+                    # elapsed_ms = float(elapsed_ms_str)*1000
+
+                # out = client.monitor(timeoutms=2000)
+                log.info(cmd)
+                # CLI(net)
+                out = client.cmdPrint(cmd)
+                # import re
+                # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
+
+                elapsed_ms_str = out[2:].rstrip()   # replace("> ", ""))
+                # print("elapsed_ms_str", elapsed_ms_str)
+                elapsed_ms = float(elapsed_ms_str)*1000
+
+                print("elapsed_ms", elapsed_ms)
+                import csv
+                with open(_out('dl_times', '.csv'), 'ab') as csvfile:
+                    spamwriter = csv.writer(csvfile, 
+                            # delimiter=' ',
+                            # quotechar='|', quoting=csv.QUOTE_MINIMAL
+                            )
+
+                    # write avec ou sans dupack puis la valeur
+                    spamwriter.writerow([ int(True), elapsed_ms])
+                    # spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
+                # out = client.sendCmd(cmd)
+                # client.monitor()
+
+                # out, err, exit = errFail(cmd)
+                # print("process output: %s", out)
+                # if exit != 0:
+                #     print("Process exited with %d : %d", exit)
+                #     print("An error happened: %s", err)
+
+                # client_iperf = client.popen(cmd) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                # print("communicate for client iperf ")
+                # # out, err = client_iperf.communicate()
+                # # # wait for iperf to finish
+                # print("waiting for client iperf ")
+                # # print(out)
+                # # print(err)
+                # client_iperf.wait()
+                # client.waitOutput()
+
+                # if client_check.returncode:
+                # print("out/errs=", out, err)
+                # print("returncode=", client_iperf.returncode)
+                # # client.cmd("kill %d" % (client_check.pid,))
+                print("terminating client iperf")
+
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt")
+        except Exception as e:
+            logging.exception("Exception triggered ")
+
+        finally:
+            print("finally")
+            # if client_iperf and client_iperf.returncode is None:
+            #     client_iperf.terminate()
+            if check_reinject and client_check.returncode is None:
+                client_check.terminate()
+
+            # net.stop()
+
 
 
 class DackTest:
@@ -305,6 +493,11 @@ class DackTest:
 
 
 # net = None
+
+available_tests = [
+    DackTest
+    # PrevenantTest
+]
 
 # clean sthg
 def sigint_handler(signum, frame):
@@ -473,147 +666,6 @@ class MptcpHost(mininet.net.Host):
         print("HOST: res", res)
 
 
-def runSingleExperiment(run, client, server, out, **kwargs):
-    # in iperf3, the client sends the data so...
-
-    global net
-    _out = functools.partial(_gout, out)
-
-    reinject_out = _out("check", run, ".csv")
-    number_of_paths = kwargs.get('number_of_paths')
-    # check_reinject = kwargs.get("")
-    check_reinject = False
-    print("reinject_out=", reinject_out)
-
-    # sendCmd returns immediately while cmd waits for output
-    # res = client.cmd("ls /sys")
-    # res = client.cmd("mount -t debugfs none /sys/kernel/debug")
-    
-    # print("mounting folder res :", res)
-    # res = client.cmd("ls /root")18-01.pdf
-    # TODO problem is exec does not mount /sys/
-    # res = client.cmd("ls /sys/kernel/debug/tracing/kprobe_events")
-    # print("kprobe_events :", res)
-    # res = client.cmd("cat /etc/mtab")
-    # print("mtab :", res)
-    try: 
-
-        print("server_iperf ")
-        # server.cmd("iperf3 -s --json --logfile '%s' &" % _out("server_iperf", number_of_paths, ".log"))
-        # server_iperf.poll()
-        # TODO get results else it might get dirty
-        with open(reinject_out, "w+") as fd:
-
-            if check_reinject:
-                print("launch check_reinject")
-                client_check = client.popen(
-                # client_check = subprocess.Popen(
-                    ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
-                    # might be a problem
-                    stdout=fd,
-                    universal_newlines=True,
-                    bufsize=0
-                )
-                if client_check.returncode is not None:
-                    print("failed to start ", client_check.returncode)
-                # out, err = client_check.communicate()
-                print("launched check_reinject with pid", client_check.pid)
-
-            # if err is not None:
-            #     print("Failed running with returncode=", client_check.returncode)
-            #     print(err)
-            #     break
-
-            # assert err == 0
-
-            cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
-                serverIP=server.IP(),   # seems to work
-                # serverIP="10.0.0.2",
-                # dataAmount="-n " + dataAmount if FILE_TO_TRANSFER is not None else "",
-                dataAmount="",
-                # Generated by gen_file
-                # must finish with a string "DROPME" so that ebpfdropper can recognize and 
-                # drop it
-                fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
-                # fromFile=args.file "",
-                # paths=number_of_paths
-                logfile=_out("client_iperf", "path", number_of_paths, "run", run, ".log")
-            )
-
-            cmd = "wget http://%s/%s -O /dev/null" 
-            cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
-            cmd = cmd % ("7.7.7.7", FILE_TO_TRANSFER)
-            # if not curl:
-                # before = datetime.datetime.now()
-                # raise Exception()
-                # print client.cmd( verbose=True)
-                # elapsed_ms = (datetime.datetime.now() - before).total_seconds()*1000
-            # else:
-            #     import re
-                # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
-                # elapsed_ms = float(elapsed_ms_str)*1000
-
-            # out = client.monitor(timeoutms=2000)
-            log.info(cmd)
-            # CLI(net)
-            out = client.cmdPrint(cmd)
-            # import re
-            # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
-
-            elapsed_ms_str = out[2:].rstrip()   # replace("> ", ""))
-            # print("elapsed_ms_str", elapsed_ms_str)
-            elapsed_ms = float(elapsed_ms_str)*1000
-
-            print("elapsed_ms", elapsed_ms)
-            import csv
-            with open(_out('dl_times', '.csv'), 'ab') as csvfile:
-                spamwriter = csv.writer(csvfile, 
-                        # delimiter=' ',
-                        # quotechar='|', quoting=csv.QUOTE_MINIMAL
-                        )
-
-                # write avec ou sans dupack puis la valeur
-                spamwriter.writerow([ int(True), elapsed_ms])
-                # spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
-            # out = client.sendCmd(cmd)
-            # client.monitor()
-
-            # out, err, exit = errFail(cmd)
-            # print("process output: %s", out)
-            # if exit != 0:
-            #     print("Process exited with %d : %d", exit)
-            #     print("An error happened: %s", err)
-
-            # client_iperf = client.popen(cmd) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # print("communicate for client iperf ")
-            # # out, err = client_iperf.communicate()
-            # # # wait for iperf to finish
-            # print("waiting for client iperf ")
-            # # print(out)
-            # # print(err)
-            # client_iperf.wait()
-            # client.waitOutput()
-
-            # if client_check.returncode:
-            # print("out/errs=", out, err)
-            # print("returncode=", client_iperf.returncode)
-            # # client.cmd("kill %d" % (client_check.pid,))
-            print("terminating client iperf")
-
-    except KeyboardInterrupt:
-        print("KeyboardInterrupt")
-    except Exception as e:
-        logging.exception("Exception triggered ")
-
-    finally:
-        print("finally")
-        # if client_iperf and client_iperf.returncode is None:
-        #     client_iperf.terminate()
-        if check_reinject and client_check.returncode is None:
-            client_check.terminate()
-
-        # net.stop()
-
 
   
 if __name__ == '__main__':
@@ -633,11 +685,12 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
     parser.add_argument("-i", "--interactive", action="store_true",
         help="Waiting in command line interface", default=False)
-    parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
+    # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
-    parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False, help="Wether to attach our filter")
-    parser.add_argument("test", choices=list(map(lambda x: x.name, available_tests)), action="store", 
+    parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
+        help="Wether to attach our filter")
+    parser.add_argument("test", choices=list(map(lambda x: x.__name__, available_tests)), action="store", 
         help="Test to run")
     # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
     # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
@@ -653,19 +706,18 @@ if __name__ == '__main__':
     args = vars(largs)
 
     setLogLevel(largs.debug)
-
     log.setLevel(logging.DEBUG)
 
     print("CWD=", os.getcwd())
     print("creating %s" % largs.out)
     subprocess.check_call("mkdir -p %s" % largs.out, shell=True)
     
-    _out = functools.partial(_gout, kwargs.get('out'))
-    number_of_paths = kwargs.get('number_of_paths', 1)
+    # _out = functools.partial(_gout, kwargs.get('out'))
+    number_of_paths = args.get('number_of_paths', 1)
 
     # using 
     global net
-    my_topo = StaticTopo(number_of_paths, loss)
+    my_topo = StaticTopo(number_of_paths, )
     net = Mininet(
         topo=my_topo,
         link=mininet.link.AsymTCLink,
@@ -679,7 +731,23 @@ if __name__ == '__main__':
     net.start()
 
     # test
-    test = globals()[args.test_name]("toto")
+    test = globals()[args.test_name](**args)
+
+    try:
+        test.setup()
+        # test.runExperiments()
+        for run in range(kwargs.get("runs", 1)):
+            test.runSingleExperiment(run, client, server, **kwargs)
+
+
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+    except Exception as e:
+        logging.exception("Exception triggered ")
+    finally:
+        test.tearUp()
+
+
 
     # if args.debug:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
@@ -696,5 +764,5 @@ if __name__ == '__main__':
     # v = vars(args)
     # for paths in number_of_paths:
     #     print("Running experiments with ", paths, "subflows")
-    runExperiment(**args)
+    # runExperiment(**args)
     
