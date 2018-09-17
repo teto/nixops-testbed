@@ -155,7 +155,7 @@ class Test:
         log.info("starting %s" % cmd)
         proc = node.popen(cmd)
 
-        if server_iperf.poll():
+        if proc.poll():
             print("Failed to run ", cmd)
             print("returned", server_iperf.returncode)
             # print(err)
@@ -163,30 +163,79 @@ class Test:
 
 
     def start_tcpdump(self, node, **kwargs):
+        cmd = ["tcpdump", "-i", "any", "-w", self._out("client", number_of_paths, ".pcapng") ]
+        self.start_daemon(node, cmd)
 
 
     def start_tshark(self, node, **kwargs):
+        # nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
+            # todo use dumpcap instead
+            # dumpcap -q -w
+            # for tcpdump use -U
+            # client.cmd(cmd,)
+
         pass
 
     def start_iperf(self, node, **kwargs):
-
-        cmd = "iperf3 -s --json --logfile=%s" % (self._out("server_iperf", number_of_paths, ".log"),)
+        # iperf 3 version
+        # "Normally, the test data is sent from the client to the server,"
+        # number_of_paths, 
+        cmd = "iperf3 -s --json --logfile=%s" % (self._out("server_iperf", self.name, ".log"),)
         # server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
-        self.start_daemon(node, )
+        self.start_daemon(node, cmd)
 
     def start_webfs(self, node, **kwargs):
 
         server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
-        self.start_daemon()
+        self.start_daemon(node, cmd)
 
     def start_webfs(self, node, **kwargs):
         server_cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
         self.start_daemon()
 
     # setup as an abstract to implement
-    @
-    def setup(self,):
-        pass
+    def setup(self, net, **kwargs):
+        client = net.get('client')
+        server = net.get('server')
+        gateway = net.get('gateway')
+        # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
+
+        if kwargs.get("ebpfdrop"):
+            print("attach_filter %r" % gateway)
+            attach_filter(gateway)
+
+
+
+        log.info("starting %s" % server_cmd)
+        server_iperf = server.popen(server_cmd)
+        
+        # out, err = server_iperf.communicate()
+        # if err is not None:
+        if server_iperf.poll():
+            print("Failed to run ", cmd)
+            print("returned", server_iperf.returncode)
+            # print(err)
+            sys.exit(1)
+        
+        if interactive:
+            print("Experiment is ready to start... enter exit to start")
+            print("client ping 10.0.0.2 -c 4")
+            res = None
+            res = CLI(net)
+            if res:
+                net.stop()
+                sys.exit(1)
+
+            print("RESULT %r" % (res))
+
+        if args.get("capture"):
+            print("Capturing packets...")
+            print('tshark -r out/client_2.pcap -z "conv,mptcp"')
+
+            self.start_tshark(client)
+            self.start_tshark(server)
+
+            os.system("sleep 5")
 
     def _out(*args):
         """ Use it to name files"""
@@ -204,140 +253,14 @@ class Test:
             print("retcode ", proc.returncode)
             if proc.returncode is None:
                 proc.terminate()
-            # # print("killing dumpcap")
-            # # out, err = client_tshark.communicate()
-            # # print(" out/err ", out, err)
-            # # print(" retcode ", client_tshark.returncode)
-            # client_tshark.terminate()
-            # # out, err = server_tshark.communicate()
-            # # kill
-            # server_tshark.terminate()
 
             print("server retcode ", proc.returncode)
-            # server_tshark.terminate()
             # os.system('pkill -f \'tshark\'')
-
-    def runExperiments(net, 
-        interactive, test, loss,
-        capture=False,
-        **kwargs
-        ):
-        """
-        Run a batch of experiments
-        """
-
-        global args
-        client = net.get('client')
-        server = net.get('server')
-        gateway = net.get('gateway')
-        # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
-
-        if args.get("ebpfdrop"):
-            print("attach_filter %r" % gateway)
-            attach_filter(gateway)
-
-        # iperf 3 version
-        # "Normally, the test data is sent from the client to the server,"
-
-
-        # from francois
-        # cmd = "python -m SimpleHTTPServer 8000"
-        # server.cmd(cmd)
-        log.info("starting %s" % server_cmd)
-        server_iperf = server.popen(server_cmd)
-        
-        # out, err = server_iperf.communicate()
-        # if err is not None:
-        if server_iperf.poll():
-            print("Failed to run ", cmd)
-            print("returned", server_iperf.returncode)
-            # print(err)
-            sys.exit(1)
-        
-        if interactive:
-            print("Experiment is ready to start... enter exit to start")
-            print("client ping 10.0.0.2 -c 4")
-            res = None
-            res = CLI(net)
-            # if res:
-            #     net.stop()
-            #     sys.exit(1)
-
-            print("RESULT %r" % (res))
-
-        if args.get("capture"):
-            print("Capturing packets...")
-            print('tshark -r out/client_2.pcap -z "conv,mptcp"')
-            # TODO use popen instead ?
-
-            # nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
-            # todo use dumpcap instead
-            # dumpcap -q -w
-            # for tcpdump use -U
-            cmd = ["tcpdump", "-i", "any", "-w", self._out("client", number_of_paths, ".pcapng") ]
-            log.info("starting %s" % cmd)
-            # client.cmd(cmd,)
-
-            # print("CWD=", os.getcwd())
-            client_tshark = client.popen(cmd, universal_newlines=True,)
-            # # Check if child process has terminated. Set and return returncode attribute.
-            
-            # print("client tshark retcode", client_tshark.returncode)
-            if client_tshark.poll():
-                print("failed")
-
-            cmd = ["tcpdump", "-i", "any", "-w", _out("server", number_of_paths, ".pcapng") ]
-            server_tshark = server.popen(cmd, universal_newlines=True,)
-            print("server popen")
-            
-            if server_tshark.poll():
-                print("iperf server failed")
-
-            # let tshark the time to setup itself
-            os.system("sleep 5")
-        
-
-                
-        # run_tests()
-        # TODO move the loop to here
-        for run in range(kwargs.get("runs", 1)):
-            runSingleExperiment(run, client, server, **kwargs)
-
-        if args.get("capture"):
-            print("killing dumpcap")
-            # out, err = client_tshark.communicate()
-            # print(" out/err ", out, err)
-            # print(" retcode ", client_tshark.returncode)
-            client_tshark.terminate()
-            # out, err = server_tshark.communicate()
-            print("client retcode ", client_tshark.returncode)
-            # kill
-            server_tshark.terminate()
-
-            print("server retcode ", server_tshark.returncode)
-            # server_tshark.terminate()
-            # os.system('pkill -f \'tshark\'')
-
-            
-        if interactive:
-            print ("Experiment finished... enter exit to finish")
-            # CLI(net)
-        
-        # lets wait a moment
-        sleep(3)
-        # and ensure iperf is finished :-)
-        # server.cmd("kill %d" % (server_iperf.pid,))
-        # server_iperf.terminate()
-        # os.system('pkill -f \'iperf\'')
-        server.terminate()
-
-
-        net.stop()
 
     # def run_xp(self, run):
     #     pass
 
-    def runSingleExperiment(run, client, server, out, **kwargs):
+    def run_xp(self, net, run, client, server, out, **kwargs):
         # in iperf3, the client sends the data so...
 
         global net
