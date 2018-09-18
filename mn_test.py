@@ -24,6 +24,7 @@ derived from mininet_progmp_helper.py
 
 import os
 import sys
+import abc
 from time import sleep
 import argparse
 import signal
@@ -40,6 +41,9 @@ from mininet.clean import cleanup as net_cleanup
 from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
                            numCores, retry, mountCgroups )
 
+# 
+from builtins import super
+# import future
 import mininet
 import functools
 import logging
@@ -114,7 +118,7 @@ topoSinglePath = [
     },
 ]
 
-topo = topoSinglePath
+# topo = topoSinglePath
 # topo = topoWireLessHetero
 # topo = topoSymetric
 topo = topoAsymetric
@@ -128,6 +132,13 @@ topo = topoAsymetric
 #               params1=par1,
 #               params2=par2)
 
+available_topologies = {
+    "singlePath": topoSinglePath,
+    "wirelessHetero": topoWireLessHetero,
+    "symetric": topoSymetric,
+    "asymetric":  topoAsymetric
+}
+
 
 # we don't have their RBS scheduler
 # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
@@ -137,21 +148,37 @@ def run_sysctl(key, value, **popenargs):
     subprocess.check_call(["sysctl -w %s='%s'" % (key, value)], shell=True)
 
 
-class Test:
-    def __init__(self, name, out, aggr_dupack=0, scheduler="default",
-            path_manager="fullmesh",
-            **kwargs,
+class Test(object):
+    def __init__(self, name,
+            # sysctl values
+            aggr_dupack=0, aggr_rto=0,
+            mptcp_scheduler="default",
+            mptcp_path_manager="fullmesh",
+            tcp_timestamps=3,
+            **kwargs
         ):
         self.name = name
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
-        self._out_folder = out
+        self._out_folder = kwargs.get("out", "out")
         run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
         run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
-        run_sysctl("net.mptcp.mptcp_aggressive_dupack", 1)
-        run_sysctl('net.mptcp.mptcp_path_manager', path_manager)
-        run_sysctl("net.mptcp.mptcp_scheduler", scheduler)
+        run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+        run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
+        run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
+        # os.system('sysctl -w net.mptcp.mptcp_debug=0')
+        # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
+
+        run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
+        assert tcp_timestamps == None or tcp_timestamps < 5
+        if tcp_timestamps is not None:
+            run_sysctl('net.ipv4.tcp_timestamps', tcp_timestamps)
         # self.init(**kwargs)
+
+    @staticmethod
+    def init_subparser(parser):
+        return parser
+
 
     def start_daemon(self, node, cmd):
 
@@ -172,12 +199,11 @@ class Test:
 
     def start_tshark(self, node, **kwargs):
         # nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
-            # todo use dumpcap instead
-            # dumpcap -q -w
-            # for tcpdump use -U
-            # client.cmd(cmd,)
-
-        pass
+        # todo use dumpcap instead
+        # dumpcap -q -w
+        # for tcpdump use -U
+        # client.cmd(cmd,)
+        self.start_tcpdump(node, **kwargs)
 
     # def start_iperf_client(self, ):
     #     cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
@@ -211,18 +237,14 @@ class Test:
         self.start_daemon(node, cmd)
 
     # setup as an abstract to implement
-    def setup(self, net, interactive, **kwargs):
+    def setup(self, net, **kwargs):
         client = net.get('client')
         server = net.get('server')
         gateway = net.get('gateway')
         # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
 
-        if kwargs.get("ebpfdrop"):
-            print("attach_filter %r" % gateway)
-            attach_filter(gateway)
-
         
-        if interactive:
+        if kwargs.get('interactive'):
             print("Experiment is ready to start... enter exit to start")
             print("client ping 10.0.0.2 -c 4")
             res = None
@@ -233,7 +255,7 @@ class Test:
 
             print("RESULT %r" % (res))
 
-        if args.get("capture"):
+        if kwargs.get("capture"):
             print("Capturing packets...")
             print('tshark -r out/client_2.pcap -z "conv,mptcp"')
 
@@ -253,6 +275,9 @@ class Test:
 
     def tearDown(self):
         logging.info("Tearing down")
+
+        # restore some sysctl values ? like timestamp
+        # 
         for proc in self._popens:
 
             print("retcode ", proc.returncode)
@@ -265,13 +290,20 @@ class Test:
     # def run_xp(self, run):
     #     pass
 
-    def run_xp(self, net, run, client, server, out, **kwargs):
-        """
-        """
+    # @abc.abstractmethod
+    # def run_xp(self, net, run, **kwargs):
+    #     """
+    #     """
+    #     pass
 
 
-        # out, err, exit = errFail(cmd)
-        # print("process output: %s", out)
+    # out, err, exit = errFail(cmd)
+    # print("process output: %s", out)
+    def runExperiments(self, net, **kwargs):
+        
+        for run in range(args.get("runs", 1)):
+            test.run_xp(net, run, **args)
+
 
 
 
@@ -279,15 +311,16 @@ class Test:
 class FastReinject(Test):
     """
     """
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         """
         """
-        super().__init__("Tlp", *args)
+        super().__init__(self, "Tlp", *args)
 
     def setup(self, net, ):
         check_reinject = True
-
-        self.start_iperf()
+        client = net.get('client')
+        server = net.get('server')
+        self.start_iperf_server(server)
 
     def run_xp(self, net, run, client, server, out, **kwargs):
         # in iperf3, the client sends the data so...
@@ -317,40 +350,87 @@ class FastReinject(Test):
 
 
 class TlpTest(Test):
+    """ Reproduce tail loss probe test"""
+    def __init__(self, *args, **kwargs):
+        super().__init__("Tlp",  *args, **kwargs)
+
     # Tail loss probe
-    def init(self, *args):
-        super().__init__("Tlp", *args)
+    # def init(self, *args):
+    #     super().__init__("Tlp", *args)
+
+    def setup(self, net):
+        gateway = net.get('gateway')
+        # if kwargs.get("ebpfdrop"):
+        print("attach_filter %r" % gateway)
+        # TODO pass ifname ?
+
+        attach_filter(gateway)
+
+
+    # def runExperiments(self, net, **kwargs):
+    #     for run in range(args.get("runs", 1)):
+    #         test.run_xp(net, run, **args)
+
 
 
 
 class DackTest(Test):
-    def __init__(self, *args):
-        super().__init__("Dack", *args)
+
+    def __init__(self, *args, **kwargs):
+        super(DackTest, self).__init__("Dack", )
+
+    # def init_subparser(parser):
+    #     return parser
 
     def setup(self, net, **kwargs):
-        super().setup(self, **kwargs)
-        client = net.get('client')
+        super().setup(net, **kwargs)
         server = net.get('server')
         gateway = net.get('gateway')
 
         self.start_webfs(server)
 
-    def run_xp(self, net, run, client, server, **kwargs):
+
+    def runExperiments(self, net, **kwargs):
+        client = net.get('client')
+        
+        runs = kwargs.get("runs", 1)
+        # logging.info("Starting %d runs" % runs)
+        def _runXPs(aggr_dupack):
+            run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+            print("Starting %d runs" % runs)
+            for run in range(runs):
+                elapsed_ms = self.run_xp(net, run, client, **kwargs)
+
+                writer.writerow([ int(aggr_dupack), elapsed_ms])
+
+
+        import csv
+        with open(self._out('dl_times', '.csv'), 'wb') as csvfile:
+            writer = csv.writer(csvfile, 
+                    # delimiter=' ',
+                    # quotechar='|', quoting=csv.QUOTE_MINIMAL
+            )
+
+            writer.writerow(["aggr", "delay"])
+            _runXPs(1)
+            _runXPs(0)
+
+
+
+    def run_xp(self, net, run, client, **kwargs):
+        """
+        Start an http server, download a file and saves the transfer time into a csv
+        """
+        gateway = net.get('gateway')
         # cmd = "wget http://%s/%s -O /dev/null" 
         cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
         cmd = cmd % ("7.7.7.7", FILE_TO_TRANSFER)
-        # if not curl:
-            # before = datetime.datetime.now()
-            # raise Exception()
-            # print client.cmd( verbose=True)
-            # elapsed_ms = (datetime.datetime.now() - before).total_seconds()*1000
-        # else:
         #     import re
-            # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
-            # elapsed_ms = float(elapsed_ms_str)*1000
+        # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
+        # elapsed_ms = float(elapsed_ms_str)*1000
 
         # out = client.monitor(timeoutms=2000)
-        log.info(cmd)
+        # log.info(cmd)
         # CLI(net)
         out = client.cmdPrint(cmd)
         # import re
@@ -361,30 +441,40 @@ class DackTest(Test):
         elapsed_ms = float(elapsed_ms_str)*1000
 
         print("elapsed_ms", elapsed_ms)
-        import csv
-        with open(self._out('dl_times', '.csv'), 'ab') as csvfile:
-            spamwriter = csv.writer(csvfile, 
-                    # delimiter=' ',
-                    # quotechar='|', quoting=csv.QUOTE_MINIMAL
-                    )
 
-            # write avec ou sans dupack puis la valeur
-            spamwriter.writerow([ int(True), elapsed_ms])
-            # spamwriter.writerow(['Spam', 'Lovely Spam', 'Wonderful Spam'])
-        # out = client.sendCmd(cmd)
-        # client.monitor()
+        # write avec ou sans dupack puis la valeur
+        return elapsed_ms
 
 
-# class PrevenantTest:
-#     def __init__(self):
-#         subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
+class PrevenantTest(Test):
+    def __init__(self):
+        super().__init__("Prevenant", )
+         
+
+    def setup(self, net, **kwargs):
+        super().setup(net, **kwargs)
+        client = net.get('client')
+        server = net.get('server')
+        gateway = net.get('gateway')
+
+        subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
+        run_sysctl("net.mptcp.mptcp_scheduler", "mptcp_prevenant")
+
+        self.start_webfs(server)
+
+
+    def runExperiments(self, net, **kwargs):
+        """
+        """
+        # need to generate a situation with frequent retransmissions
 
 
 # net = None
 
 available_tests = [
-    DackTest
-    # PrevenantTest
+    DackTest,
+    TlpTest,
+    PrevenantTest
 ]
 
 # clean sthg
@@ -415,7 +505,7 @@ class StaticTopo(Topo):
          we use routers instead of switches to avoid OVS-related problems
         
     """
-    def build(self, number_of_paths = 2, loss = 0):
+    def build(self, topo, number_of_paths = 2, loss = 0):
 
         global args
 
@@ -426,7 +516,6 @@ class StaticTopo(Topo):
         # gateway = self.addHost('gateway')
         gateway = self.addHost('gateway')
 
-        print("attach_filter %r" % gateway)
         
         # everything should go through this switch
         # since we need to cancel only the first paquet
@@ -564,24 +653,27 @@ if __name__ == '__main__':
     print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file", help="The file to download",)
-    parser.add_argument("-n", "--number-of-paths", type=int, default=2, help="The number of subflows")
-    parser.add_argument("-r", "--reinjections", type=bool, default=False, help="Check for reinjections")
+    # todo move to test
+    # parser.add_argument("--file", help="The file to download",)
+    parser.add_argument("-n", "--number-of-paths", type=int, default=2, 
+        help="The number of subflows")
+    parser.add_argument("-r", "--reinjections", type=bool, default=False,
+        help="Check for reinjections")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'],
         help="Running in debug mode", default='info')
-    parser.add_argument("-t", "--test", choices=["iperf3-cdf"], help="test to run", default="iperf3-cdf")
-    parser.add_argument("-c", "--capture", action="store_true", help="capture packets", default=False)
+    parser.add_argument("-t", "--topo", choices=available_topologies.keys(),
+        help="Topology", default="asymetric")
+    parser.add_argument("-c", "--capture", action="store_true", 
+        help="capture packets", default=False)
     parser.add_argument("-i", "--interactive", action="store_true",
         help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
-    parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
-        help="Wether to attach our filter")
+    # parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
+        # help="Wether to attach our filter")
     parser.add_argument("test", choices=list(map(lambda x: x.__name__, available_tests)), action="store", 
         help="Test to run")
-    # parser.add_argument("-b", "--batch", action="store", default="out", help="out folder")
-    # parser.add_argument("-r", "--clean", action="store", default="out", help="out folder")
 
     # subparsers = parser.add_subparsers(dest="subparser_name", title="Subparsers",
     #     help='sub-command help')
@@ -590,22 +682,24 @@ if __name__ == '__main__':
     #     help='Converts pcap to a csv file')
 
     global args
-    largs, unknown_args = parser.parse_known_args()
-    args = vars(largs)
+    args, unknown_args = parser.parse_known_args()
+    # todo rename into dargs /..
+    dargs = vars(args)
 
-    setLogLevel(largs.debug)
+    setLogLevel(args.debug)
+    # args.debug
     log.setLevel(logging.DEBUG)
 
     print("CWD=", os.getcwd())
-    print("creating %s" % largs.out)
-    subprocess.check_call("mkdir -p %s" % largs.out, shell=True)
+    print("creating %s" % args.out)
+    subprocess.check_call("mkdir -p %s" % args.out, shell=True)
     
     # _out = functools.partial(_gout, kwargs.get('out'))
-    number_of_paths = args.get('number_of_paths', 1)
+    number_of_paths = dargs.get('number_of_paths', 1)
 
     # using 
-    global net
-    my_topo = StaticTopo(number_of_paths, )
+    topo = available_topologies[args.topo]
+    my_topo = StaticTopo(topo=topo, number_of_paths=number_of_paths, )
     net = Mininet(
         topo=my_topo,
         link=mininet.link.AsymTCLink,
@@ -619,32 +713,28 @@ if __name__ == '__main__':
     net.start()
 
     # test
-    test = globals()[largs.test_name](**args)
+    # test = DackTest(**args)
+    test = globals()[args.test](**dargs)
 
     try:
-
         client = net.get('client')
         server = net.get('server')
-        test.setup(net)
-        # test.runExperiments()
-        for run in range(args.get("runs", 1)):
-            test.run_xp(run, client, server, **args)
-
+        test.setup(net, **dargs)
+        test.runExperiments(net, **dargs)
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
     except Exception as e:
         logging.exception("Exception triggered ")
     finally:
-        test.tearUp()
+        test.tearDown()
+        net_cleanup()
 
-
+    print("finished")
 
     # if args.debug:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
     # else:
-    #     os.system('sysctl -w net.mptcp.mptcp_debug=0')
-    # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
 
     # if args.number_of_subflows:

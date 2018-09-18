@@ -124,6 +124,55 @@ def plot_reinjections(filename):
         plt.show()
 
 
+def plot_transfer_times(filename):
+
+    print("plotting transfer times")
+    with open(filename) as fd:
+        df = pd.read_csv(
+            fd,
+            comment='#',
+            header=0,  # we don't need 'header' when metadata is with comment
+            # delim_whitespace=True, # use whitespace as delimiter
+            # dtype=fields,
+            # usecols = [ 'time', 'sowd_out', 'sowd_in'],
+            # nrows=40, # useful for debugging purpose
+        )
+
+        print(df.head())
+        fig = plt.figure()
+        axes = fig.gca()
+        # handles, labels = axes.get_legend_handles_labels()
+
+        axes.set_ylabel("Transfer delay (ms)")
+        # axes.set_xlabel("elapsed time (s)")
+
+        # TODO move afterwards ?
+        # df.set_index('time')
+
+        # as_index=False
+        # df.plot(kind='line',x='name',y='num_children',ax=ax)
+        print(df['aggr'])
+        grouped_by = df.groupby(by='aggr', as_index=True, )
+        # ax1 = grouped_by.plot.line(ax=axes, legend=True)
+
+        labels = []
+        for aggr, subdf in grouped_by:
+            # print("aggressive", aggr)
+            subdf.reset_index(inplace=True)
+            # print(subdf.head())
+            ax1 = subdf.plot.line(ax=axes, y="delay")
+            labels.append("aggressive %d" % aggr)
+
+        handles, _labels = axes.get_legend_handles_labels()
+
+        axes.legend( handles, labels)
+
+
+        # ax1 = df.plot.line(ax=axes, legend=True)
+        plt.show()
+
+
+
 def plot_owd(filename):
 
     with open(filename) as fd:
@@ -159,7 +208,7 @@ def plot_owd(filename):
         # legend_artists.append(lines[-1])
         # legends.append("dack for sf %d" % tcpstream)
         plt.show()
-
+        fig.savefig("delays", format="png", )
 
 
 def main(arguments=None):
@@ -204,7 +253,8 @@ def main(arguments=None):
 
 
     # plot_owd(args.input_file)
-    plot_reinjections(args.input_file)
+    # plot_reinjections(args.input_file)
+    plot_transfer_times(args.input_file)
 
 
 if __name__ == '__main__':

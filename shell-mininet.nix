@@ -8,4 +8,6 @@ let
   # });
   a= 2;
 in
-runCommand "dummy" { buildInputs = [ iperf3 (python.withPackages(ps:[ps.mininet-python])) ]; } ""
+  runCommand "dummy" { 
+    buildInputs = [ iperf3 (python.withPackages(ps:[ps.mininet-python ps.future])) ]; 
+  } ""
