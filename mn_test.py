@@ -93,13 +93,13 @@ topoWireLessHetero = [
     { 'bw': 4, 'delay': "20ms", "loss": 20},
 ]
 
-forward={ 'delay': "10ms"}
+forward={ 'delay': "10ms", "loss": 10}
 backward={ 'delay': "50ms"}
 
 topoAsymetric = [
     # loss is in percoutage
     # 'delay': "20ms",
-    { 'bw': 2,  "loss": 10, "max_queue_size":1000, "use_htb": True, 
+    { 'bw': 2, "max_queue_size":1000, "use_htb": True, 
         'params1': forward, 'params2': backward
     },
     # { 'bw': 2, 'delay': "20ms", "loss": 20},
@@ -182,7 +182,8 @@ class Test(object):
 
     def start_daemon(self, node, cmd):
 
-        log.info("starting %s" % cmd)
+        print("starting daemon ?")
+        logging.info("starting %s" % cmd)
         proc = node.popen(cmd)
 
         if proc.poll():
@@ -228,12 +229,12 @@ class Test(object):
 
         self.start_daemon(node, cmd)
 
-    # def start_webfs(self, node, **kwargs):
-    #     cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
-    #     self.start_daemon(node, cmd)
-
     def start_webfs(self, node, **kwargs):
-        cmd = "webfsd -s -R /home/teto/testbed -i 7.7.7.7 -d"
+        # -i 7.7.7.7 
+        # -s => some text in syslog
+        # -R <dir> set document root to DIR
+        print("startwebfs")
+        cmd = "webfsd -s -R /home/teto/testbed -d"
         self.start_daemon(node, cmd)
 
     # setup as an abstract to implement
@@ -243,7 +244,6 @@ class Test(object):
         gateway = net.get('gateway')
         # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
 
-        
         if kwargs.get('interactive'):
             print("Experiment is ready to start... enter exit to start")
             print("client ping 10.0.0.2 -c 4")
@@ -254,6 +254,7 @@ class Test(object):
                 sys.exit(1)
 
             print("RESULT %r" % (res))
+        
 
         if kwargs.get("capture"):
             print("Capturing packets...")
@@ -273,7 +274,7 @@ class Test(object):
         # 
         # argparse.ArgumentParser
 
-    def tearDown(self):
+    def tearDown(self,):
         logging.info("Tearing down")
 
         # restore some sysctl values ? like timestamp
@@ -299,17 +300,20 @@ class Test(object):
 
     # out, err, exit = errFail(cmd)
     # print("process output: %s", out)
+
+    @abc.abstractmethod
     def runExperiments(self, net, **kwargs):
         
-        for run in range(args.get("runs", 1)):
-            test.run_xp(net, run, **args)
+        pass
+        # for run in range(args.get("runs", 1)):
+        #     test.run_xp(net, run, **args)
 
 
 
 
 
 
-class FastReinject(Test):
+class PrevenantTest(Test):
     """
     """
     def __init__(self, *args, **kwargs):
@@ -329,6 +333,7 @@ class FastReinject(Test):
         """
         """
         # TODO
+        run = 0
         reinject_out = self._out("check", run, ".csv")
         number_of_paths = kwargs.get('number_of_paths')
         # check_reinject = kwargs.get("")
@@ -347,7 +352,7 @@ class FastReinject(Test):
 
             # need to generate a situation with frequent retransmissions
             for run in range(args.get("runs", 1)):
-                test.run_xp(net, run, **args)
+                self.run_xp(net, run, **args)
 
 
     def run_xp(self, run, client, **kwargs):
@@ -386,18 +391,22 @@ class TlpTest(Test):
 class DackTest(Test):
 
     def __init__(self, *args, **kwargs):
-        super(DackTest, self).__init__("Dack", )
+        super(DackTest, self).__init__("Dack", **kwargs)
 
-    # def init_subparser(parser):
-    #     return parser
+    @staticmethod
+    def init_subparser(parser):
+        parser.add_argument("fileToDownload", action="store", 
+                type=str, default=FILE_TO_TRANSFER, help="filename to download")
+        return parser
 
     def setup(self, net, **kwargs):
-        super().setup(net, **kwargs)
+        logging.info("setup network")
         server = net.get('server')
         gateway = net.get('gateway')
 
         self.start_webfs(server)
 
+        super().setup(net, **kwargs)
 
     def runExperiments(self, net, **kwargs):
         client = net.get('client')
@@ -426,14 +435,14 @@ class DackTest(Test):
 
 
 
-    def run_xp(self, net, run, client, **kwargs):
+    def run_xp(self, net, run, client, fileToDownload, **kwargs):
         """
         Start an http server, download a file and saves the transfer time into a csv
         """
         gateway = net.get('gateway')
         # cmd = "wget http://%s/%s -O /dev/null" 
         cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
-        cmd = cmd % ("7.7.7.7", FILE_TO_TRANSFER)
+        cmd = cmd % ("7.7.7.7:8000", fileToDownload)
         #     import re
         # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
         # elapsed_ms = float(elapsed_ms_str)*1000
@@ -441,7 +450,9 @@ class DackTest(Test):
         # out = client.monitor(timeoutms=2000)
         # log.info(cmd)
         # CLI(net)
+        print("starting")
         out = client.cmdPrint(cmd)
+        print(out)
         # import re
         # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
 
@@ -459,11 +470,11 @@ class DackTest(Test):
 
 # net = None
 
-available_tests = [
-    DackTest,
-    TlpTest,
-    PrevenantTest
-]
+available_tests = {
+    "dack":    DackTest,
+    "tlp":     TlpTest,
+    "prevenant": PrevenantTest
+}
 
 # clean sthg
 def sigint_handler(signum, frame):
@@ -660,23 +671,27 @@ if __name__ == '__main__':
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
     # parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
         # help="Wether to attach our filter")
-    parser.add_argument("test", choices=list(map(lambda x: x.__name__, available_tests)), action="store", 
-        help="Test to run")
+    # parser.add_argument("test", choices=list(map(lambda x: x.__name__, available_tests)), action="store", 
+        # help="Test to run")
 
-    # subparsers = parser.add_subparsers(dest="subparser_name", title="Subparsers",
-    #     help='sub-command help')
+    subparsers = parser.add_subparsers(dest="test_type", title="Subparsers",
+        help='sub-command help')
 
-    # subparser_csv = subparsers.add_parser('pcap2csv', parents=[pcap_parser],
-    #     help='Converts pcap to a csv file')
+    for name, test in available_tests.items():
+        # 
+        subparser = subparsers.add_parser(name,  # parents=[pcap_parser],
+            help='Converts pcap to a csv file')
+
+        test.init_subparser(subparser)
+
 
     global args
     args, unknown_args = parser.parse_known_args()
-    # todo rename into dargs /..
     dargs = vars(args)
 
     setLogLevel(args.debug)
     # args.debug
-    log.setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     print("CWD=", os.getcwd())
     print("creating %s" % args.out)
@@ -687,12 +702,12 @@ if __name__ == '__main__':
 
     # using 
     topo = available_topologies[args.topo]
+
+    logging.info("Selected topology %s" % (args.topo))
     my_topo = StaticTopo(topo=topo, number_of_paths=number_of_paths, )
     net = Mininet(
         topo=my_topo,
         link=mininet.link.AsymTCLink,
-        # NOOO
-        # link=TCLink,
         host=MptcpHost
     )
 
@@ -700,14 +715,17 @@ if __name__ == '__main__':
     my_topo.hook(net)
     net.start()
 
-    # test
-    # test = DackTest(**args)
-    test = globals()[args.test](**dargs)
+    test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
+    logging.info("Launching test %s" % (args.test_type))
 
     try:
         client = net.get('client')
         server = net.get('server')
+
+        # print("setup")
         test.setup(net, **dargs)
+
+        # print("running xps")
         test.runExperiments(net, **dargs)
 
     except KeyboardInterrupt:

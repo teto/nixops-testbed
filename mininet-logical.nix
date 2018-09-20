@@ -107,6 +107,13 @@ let
     ];
   };
 
+
+  # should match mininet configuration
+  networking.extraHosts = ''
+
+    7.7.7.7 server
+  '';
+
   # when connecting as 
   security.sudo.wheelNeedsPassword = lib.mkForce false;
 
