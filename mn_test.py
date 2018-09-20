@@ -308,43 +308,52 @@ class Test(object):
 
 
 
+
 class FastReinject(Test):
     """
     """
     def __init__(self, *args, **kwargs):
         """
         """
-        super().__init__(self, "Tlp", *args)
+        super().__init__(self, "Prevenant", *args)
 
     def setup(self, net, ):
         check_reinject = True
         client = net.get('client')
         server = net.get('server')
         self.start_iperf_server(server)
+        subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
+        run_sysctl("net.mptcp.mptcp_scheduler", "mptcp_prevenant")
 
-    def run_xp(self, net, run, client, server, out, **kwargs):
-        # in iperf3, the client sends the data so...
+    def runExperiments(self, net, **kwargs):
+        """
+        """
+        # TODO
         reinject_out = self._out("check", run, ".csv")
         number_of_paths = kwargs.get('number_of_paths')
         # check_reinject = kwargs.get("")
         print("reinject_out=", reinject_out)
-        check_reinject = True
+        # check_reinject = True
         with open(reinject_out, "w+") as fd:
 
-            if check_reinject:
-                print("launch check_reinject")
-                client_check = client.popen(
-                # client_check = subprocess.Popen(
-                    ["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
-                    # might be a problem
-                    stdout=fd,
-                    universal_newlines=True,
-                    bufsize=0
-                )
-                if client_check.returncode is not None:
-                    print("failed to start ", client_check.returncode)
-                # out, err = client_check.communicate()
-                print("launched check_reinject with pid", client_check.pid)
+            print("launch check_reinject")
+            cmd =["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
+                # might be a problem
+                # stdout=fd, universal_newlines=True, bufsize=0
+
+            # or server ?
+            self.start_daemon(client, cmd)
+            self.start_iperf_server(server, cmd)
+
+            # need to generate a situation with frequent retransmissions
+            for run in range(args.get("runs", 1)):
+                test.run_xp(net, run, **args)
+
+
+    def run_xp(self, run, client, **kwargs):
+        # in iperf3, the client sends the data so...
+        self.start_iperf_client(client,  )
+
 
 
 
@@ -446,27 +455,6 @@ class DackTest(Test):
         return elapsed_ms
 
 
-class PrevenantTest(Test):
-    def __init__(self):
-        super().__init__("Prevenant", )
-         
-
-    def setup(self, net, **kwargs):
-        super().setup(net, **kwargs)
-        client = net.get('client')
-        server = net.get('server')
-        gateway = net.get('gateway')
-
-        subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
-        run_sysctl("net.mptcp.mptcp_scheduler", "mptcp_prevenant")
-
-        self.start_webfs(server)
-
-
-    def runExperiments(self, net, **kwargs):
-        """
-        """
-        # need to generate a situation with frequent retransmissions
 
 
 # net = None
