@@ -111,6 +111,12 @@ topoSymetric = [
     { 'bw': 1, 'delay': "20ms", "loss": 0},
 ]
 
+topoDack = [
+    { 'bw': 1, 'delay': "10ms", "loss": 10},
+    { 'bw': 1, 'delay': "20ms", "loss": 0},
+]
+
+
 
 topoSinglePath = [
     { 'bw': 2,  "loss": 0, 
@@ -136,7 +142,8 @@ available_topologies = {
     "singlePath": topoSinglePath,
     "wirelessHetero": topoWireLessHetero,
     "symetric": topoSymetric,
-    "asymetric":  topoAsymetric
+    "asymetric":  topoAsymetric,
+    "dack":  topoDack,
 }
 
 
@@ -168,6 +175,7 @@ class Test(object):
         run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
         # os.system('sysctl -w net.mptcp.mptcp_debug=0')
         # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
+
 
         run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
         assert tcp_timestamps == None or tcp_timestamps < 5
@@ -274,7 +282,7 @@ class Test(object):
         # 
         # argparse.ArgumentParser
 
-    def tearDown(self,):
+    def tearDown(self):
         logging.info("Tearing down")
 
         # restore some sysctl values ? like timestamp
@@ -396,7 +404,9 @@ class DackTest(Test):
     @staticmethod
     def init_subparser(parser):
         parser.add_argument("fileToDownload", action="store", 
-                type=str, default=FILE_TO_TRANSFER, help="filename to download")
+            type=str, default=FILE_TO_TRANSFER, help="filename to download")
+        parser.add_argument("--reordering", action="store", type=int, default=3, 
+            help="number of dupack to consider a fast retransmit")
         return parser
 
     def setup(self, net, **kwargs):
@@ -405,6 +415,8 @@ class DackTest(Test):
         gateway = net.get('gateway')
 
         self.start_webfs(server)
+
+        run_sysctl("net.ipv4.tcp_reordering", 3)
 
         super().setup(net, **kwargs)
 
