@@ -40,7 +40,7 @@ let
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-local-stable;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp94-local-stable;
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
@@ -79,9 +79,7 @@ let
   };
 
   # IT MUST HAVE MININET !!
-  programs.mininet = {
-    enable = true;
-  };
+  # programs.mininet.enable = true;
 
   # see networkmanager.conf
   # [device]

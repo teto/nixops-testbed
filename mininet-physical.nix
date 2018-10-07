@@ -68,20 +68,17 @@
             <source dir='/home/teto/testbed'/>
             <target dir='mn'/>
         </filesystem>
-        <filesystem type='mount' accessmode='mapped'>
-            <source dir='/home/teto/frite'/>
-            <target dir='frite'/>
-        </filesystem>
         <filesystem type='mount' accessmode='passthrough'>
             <source dir='/home/teto/mininet'/>
             <target dir='mininet'/>
         </filesystem>
-        <filesystem type='mount' accessmode='passthrough'>
-            <source dir='/home/teto/nixpkgs'/>
-            <target dir='nixpkgs'/>
-        </filesystem>
       '';
     };
+
+        # <filesystem type='mount' accessmode='passthrough'>
+        #     <source dir='/home/teto/nixpkgs'/>
+        #     <target dir='nixpkgs'/>
+        # </filesystem>
     # add entry for fs ?
         # <filesystem type='mount' accessmode='passthrough'>
         #     <source dir='/home/teto/out'/>
@@ -129,11 +126,11 @@
       # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
       options = options9p ;
     };
-    fileSystems."/home/teto/frite" = {
-      device = "frite";
-      fsType = "9p";
-      options = options9p;
-    };
+    # fileSystems."/home/teto/frite" = {
+    #   device = "frite";
+    #   fsType = "9p";
+    #   options = options9p;
+    # };
 
     fileSystems."/home/teto/mininet" = {
       device = "mininet";
