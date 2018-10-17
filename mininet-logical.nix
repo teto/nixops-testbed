@@ -19,7 +19,7 @@ let
         /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
 
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
-        /home/teto/dotfiles/nixpkgs/config-all.nix
+        # /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/servers/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
         # for now don't use it
@@ -56,8 +56,8 @@ let
     home-manager
     tcpdump
     python
-    (linuxPackagesFor pkgs.mptcp-local-stable).bcc
-    mptcp-local-stable.dev
+    (linuxPackagesFor pkgs.mptcp94-local-stable).bcc
+    mptcp94-local-stable.dev
     # will need to learn how to use it
     tmux
     webfs
@@ -79,7 +79,7 @@ let
   };
 
   # IT MUST HAVE MININET !!
-  # programs.mininet.enable = true;
+  programs.mininet.enable = true;
 
   # see networkmanager.conf
   # [device]
@@ -93,7 +93,7 @@ let
     ];
 
 
-  system.stateVersion = "18.03";
+  # system.stateVersion = "18.03";
 
   # owampd will run, then use owping to test
   # services.owamp.enable = true;
@@ -113,7 +113,7 @@ let
   '';
 
   # when connecting as 
-  security.sudo.wheelNeedsPassword = lib.mkForce false;
+  # security.sudo.wheelNeedsPassword = lib.mkForce false;
 
   # extraFules allows
   # [ { commands = [ "ALL" ] ; groups = [ "sudo" ] ; } { commands = [ { command = "/home/root/secret.sh"; options = [ "SETENV" "NOPASSWD" ] ; } ] ; groups = [ 1006 ] ; users = [ "backup" "database" ] ; } { commands = [ "/home/baz/cmd1.sh hello-sudo"

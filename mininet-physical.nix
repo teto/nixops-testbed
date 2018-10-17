@@ -72,13 +72,13 @@
             <source dir='/home/teto/mininet'/>
             <target dir='mininet'/>
         </filesystem>
+        <filesystem type='mount' accessmode='passthrough'>
+            <source dir='/home/teto/nixpkgs'/>
+            <target dir='nixpkgs'/>
+        </filesystem>
       '';
     };
 
-        # <filesystem type='mount' accessmode='passthrough'>
-        #     <source dir='/home/teto/nixpkgs'/>
-        #     <target dir='nixpkgs'/>
-        # </filesystem>
     # add entry for fs ?
         # <filesystem type='mount' accessmode='passthrough'>
         #     <source dir='/home/teto/out'/>

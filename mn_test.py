@@ -111,6 +111,15 @@ topoSymetric = [
     { 'bw': 1, 'delay': "20ms", "loss": 0},
 ]
 
+# jitter is for example " '5ms"
+# update returns None which is BAD
+# topoSymetricJitter = list(map(lambda x : x.update(jitter='5ms'), topoSymetric))
+topoSymetricJitter = [
+    { 'bw': 1, 'delay': "20ms", "loss": 0, "jitter":'5ms'},
+    { 'bw': 1, 'delay': "20ms", "loss": 0, "jitter":'5ms'},
+]
+
+
 topoDack = [
     { 'bw': 1, 'delay': "10ms", "loss": 10},
     { 'bw': 1, 'delay': "20ms", "loss": 0},
@@ -144,6 +153,7 @@ available_topologies = {
     "symetric": topoSymetric,
     "asymetric":  topoAsymetric,
     "dack":  topoDack,
+    "3paths_symetric_jitter": topoSymetricJitter,
 }
 
 
@@ -170,14 +180,19 @@ class Test(object):
         self._out_folder = kwargs.get("out", "out")
         run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
         run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
-        run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+        # 
+        try:
+            run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+            run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
+        except Exception as e:
+            print("WARNING %s" % e)
+
         run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
         run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
         # os.system('sysctl -w net.mptcp.mptcp_debug=0')
         # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
 
-        run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
         assert tcp_timestamps == None or tcp_timestamps < 5
         if tcp_timestamps is not None:
             run_sysctl('net.ipv4.tcp_timestamps', tcp_timestamps)
@@ -202,7 +217,7 @@ class Test(object):
 
 
     def start_tcpdump(self, node, **kwargs):
-        cmd = ["tcpdump", "-i", "any", "-w", self._out("client", number_of_paths, ".pcapng") ]
+        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
         self.start_daemon(node, cmd)
 
 
@@ -319,8 +334,6 @@ class Test(object):
 
 
 
-
-
 class PrevenantTest(Test):
     """
     """
@@ -329,43 +342,77 @@ class PrevenantTest(Test):
         """
         super().__init__(self, "Prevenant", *args)
 
-    def setup(self, net, ):
+    def setup(self, net, **kwargs ):
+        print("prevent setup")
         check_reinject = True
         client = net.get('client')
         server = net.get('server')
         self.start_iperf_server(server)
-        subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
-        run_sysctl("net.mptcp.mptcp_scheduler", "mptcp_prevenant")
+        # subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
+        # TODO temporary must have been prevenant here
+        run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
+
+        super().setup(net, **kwargs)
+
+    def tearDown(self):
+        logging.info("Tearing down")
+
+    # def runExperiments(self, net, **kwargs):
+    #     """
+    #     """
+    #     # TODO
+    #     run = 0
+    #     reinject_out = self._out("check", run, ".csv")
+    #     # TODO temporary for testing 
+    #     reinject_out = os.devnull;
+    #     number_of_paths = kwargs.get('number_of_paths')
+    #     # check_reinject = kwargs.get("")
+    #     print("reinject_out=", reinject_out)
+    #     # check_reinject = True
+    #     with open(reinject_out, "w+") as fd:
+
+    #         # print("launch check_reinject")
+    #         # cmd =["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
+    #             # might be a problem
+    #             # stdout=fd, universal_newlines=True, bufsize=0
+
+    #         # or server ?
+    #         self.start_daemon(client, cmd)
+    #         self.start_iperf_server(server, cmd)
+
+    #         # need to generate a situation with frequent retransmissions
+    #         for run in range(args.get("runs", 1)):
+    #             self.run_xp(net, run, **args)
 
     def runExperiments(self, net, **kwargs):
         """
         """
         # TODO
         run = 0
-        reinject_out = self._out("check", run, ".csv")
-        number_of_paths = kwargs.get('number_of_paths')
-        # check_reinject = kwargs.get("")
-        print("reinject_out=", reinject_out)
-        # check_reinject = True
-        with open(reinject_out, "w+") as fd:
+        client = net.get('client')
 
-            print("launch check_reinject")
-            cmd =["/home/teto/testbed/check_opportunistic_reinject.py", "-j"], 
-                # might be a problem
-                # stdout=fd, universal_newlines=True, bufsize=0
-
-            # or server ?
-            self.start_daemon(client, cmd)
-            self.start_iperf_server(server, cmd)
-
-            # need to generate a situation with frequent retransmissions
-            for run in range(args.get("runs", 1)):
-                self.run_xp(net, run, **args)
+        # need to generate a situation with frequent retransmissions
+        for run in range(kwargs.get("runs", 1)):
+            self.run_xp(client, run, **kwargs)
 
 
-    def run_xp(self, run, client, **kwargs):
+    def run_xp(self, client, run, **kwargs):
         # in iperf3, the client sends the data so...
-        self.start_iperf_client(client,  )
+        # self.start_iperf_client(client,  )
+        # client = dataAmount
+        cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
+            serverIP=server.IP(),   # seems to work "7.7.7.7"
+            # dataAmount="-n " + dataAmount if FILE_TO_TRANSFER is not None else "",
+            dataAmount="",
+            # Generated by gen_file
+            # must finish with a string "DROPME" so that ebpfdropper can recognize and 
+            # drop it
+            fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
+            # fromFile=args.file "",
+            # paths=number_of_paths
+            logfile=self._out("client_iperf", "path", number_of_paths, "run", run, ".log")
+        )
+        client.cmdPrint(cmd)
 
 
 
@@ -395,6 +442,48 @@ class TlpTest(Test):
 
 
 
+
+# class ReinjectionTest(Test):
+
+#     def __init__(self, *args, **kwargs):
+#         super(ReinjectionTest, self).__init__("Reinjection", **kwargs)
+
+#     @staticmethod
+#     def init_subparser(parser):
+#         parser.add_argument("fileToDownload", action="store", 
+#             type=str, default=FILE_TO_TRANSFER, help="filename to download")
+#         return parser
+
+#     def setup(self, net, **kwargs):
+#         logging.info("setup network")
+#         server = net.get('server')
+#         gateway = net.get('gateway')
+
+#         self.start_webfs(server)
+
+#         super().setup(net, **kwargs)
+
+#     def runExperiments(self, net, **kwargs):
+#         client = net.get('client')
+
+#         _runXPs(1)
+#         _runXPs(0)
+
+#     def run_xp(self, net, run, client, fileToDownload, **kwargs):
+#         """
+#         Start an http server, download a file and saves the transfer time into a csv
+#         """
+#         gateway = net.get('gateway')
+#         proc = self.start_tshark(client)
+#         # cmd = "wget http://%s/%s -O /dev/null" 
+#         cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
+#         cmd = cmd % ("7.7.7.7:8000", fileToDownload)
+#         print("starting")
+#         out = client.cmdPrint(cmd)
+#         print(out)
+#         proc.terminate()
+#         # write avec ou sans dupack puis la valeur
+#         return elapsed_ms
 
 class DackTest(Test):
 
@@ -485,7 +574,8 @@ class DackTest(Test):
 available_tests = {
     "dack":    DackTest,
     "tlp":     TlpTest,
-    "prevenant": PrevenantTest
+    "prevenant": PrevenantTest,
+    # "reinjection": ReinjectionTest,
 }
 
 # clean sthg
