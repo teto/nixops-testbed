@@ -171,7 +171,7 @@ class Test(object):
             aggr_dupack=0, aggr_rto=0,
             mptcp_scheduler="default",
             mptcp_path_manager="fullmesh",
-            tcp_timestamps=3,
+            tcp_timestamps=1,
             **kwargs
         ):
         self.name = name
@@ -208,6 +208,7 @@ class Test(object):
         print("starting daemon ?")
         logging.info("starting %s" % cmd)
         proc = node.popen(cmd)
+        self._popens.append(proc)
 
         if proc.poll():
             print("Failed to run ", cmd)
@@ -490,6 +491,9 @@ class DackTest(Test):
     def __init__(self, *args, **kwargs):
         super(DackTest, self).__init__("Dack", **kwargs)
 
+        # TODO temporary
+        run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
+
     @staticmethod
     def init_subparser(parser):
         parser.add_argument("fileToDownload", action="store", 
@@ -505,7 +509,7 @@ class DackTest(Test):
 
         self.start_webfs(server)
 
-        run_sysctl("net.ipv4.tcp_reordering", 3)
+        # run_sysctl("net.ipv4.tcp_reordering", 3)
 
         super().setup(net, **kwargs)
 
@@ -515,7 +519,7 @@ class DackTest(Test):
         runs = kwargs.get("runs", 1)
         # logging.info("Starting %d runs" % runs)
         def _runXPs(aggr_dupack):
-            run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+            # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
             print("Starting %d runs" % runs)
             for run in range(runs):
                 elapsed_ms = self.run_xp(net, run, client, **kwargs)
