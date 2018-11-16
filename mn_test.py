@@ -31,6 +31,7 @@ import signal
 import subprocess
 # from progmp import ProgMP
 
+from asym_link import AsymTCLink
 from mininet.cli import CLI
 from mininet.topo import Topo
 from mininet.net import Mininet
@@ -813,7 +814,7 @@ if __name__ == '__main__':
     my_topo = StaticTopo(topo=topo, number_of_paths=number_of_paths, )
     net = Mininet(
         topo=my_topo,
-        link=mininet.link.AsymTCLink,
+        link=AsymTCLink,
         host=MptcpHost
     )
 
