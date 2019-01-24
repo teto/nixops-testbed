@@ -5,7 +5,8 @@
 let
   tpl = { config, pkgs, lib,  ... }:
   let
-
+    # myKernel = pkgs.mptcp94-local-stable;
+    myKernel = pkgs.linux_mptcp_trunk;
     myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
   in
   ({
@@ -40,14 +41,14 @@ let
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp94-local-stable;
+  boot.kernelPackages = pkgs.linuxPackagesFor myKernel;
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
-    flent # https://flent.org/intro.html#quick-start
+    # flent # https://flent.org/intro.html#quick-start
     gdb
     owamp
     ethtool # needed
@@ -56,12 +57,14 @@ let
     home-manager
     tcpdump
     python
-    (linuxPackagesFor pkgs.mptcp94-local-stable).bcc
-    mptcp94-local-stable.dev
     # will need to learn how to use it
     tmux
     webfs
     # (python.withPackages(ps: with ps; [ mininet-python ] ))
+
+
+    (linuxPackagesFor myKernel).bcc
+    myKernel.dev
   ];
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
@@ -108,7 +111,6 @@ let
 
   # should match mininet configuration
   networking.extraHosts = ''
-
     7.7.7.7 server
   '';
 
