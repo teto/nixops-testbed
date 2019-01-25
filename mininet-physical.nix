@@ -69,6 +69,10 @@
             <target dir='mn'/>
         </filesystem>
         <filesystem type='mount' accessmode='passthrough'>
+            <source dir='/home/teto/mptcpnetlink'/>
+            <target dir='netlink'/>
+        </filesystem>
+        <filesystem type='mount' accessmode='passthrough'>
             <source dir='/home/teto/mininet'/>
             <target dir='mininet'/>
         </filesystem>
@@ -131,6 +135,13 @@
     #   fsType = "9p";
     #   options = options9p;
     # };
+
+    fileSystems."/home/teto/mptcpnetlink" = {
+      device = "netlink";
+      fsType = "9p";
+      # make it readonly
+      options = options9p ++ [ "ro"];
+    };
 
     fileSystems."/home/teto/mininet" = {
       device = "mininet";
