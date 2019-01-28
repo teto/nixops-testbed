@@ -41,7 +41,8 @@ let
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
-  boot.kernelPackages = pkgs.linuxPackagesFor myKernel;
+  # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp94-local-stable;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux;
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
