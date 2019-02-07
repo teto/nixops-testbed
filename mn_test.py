@@ -5,11 +5,6 @@
 # => on the host you need to start nix-serve -p 8080
 # in order to build up 
 
-# when you have a problem with the store
-# look at https://github.com/NixOS/nixops/issues/931
-# mount -o remount,rw /nix/store
-# chown -R root:root /nix/store
-
 # To clean everything run 'mn -c'
 
 # python needs to read this 
@@ -167,7 +162,9 @@ def run_sysctl(key, value, **popenargs):
 
 
 class Test(object):
-    def __init__(self, name,
+    description = "default description"
+    def __init__(self, 
+            name,
             # sysctl values
             aggr_dupack=0, aggr_rto=0,
             mptcp_scheduler="default",
@@ -176,6 +173,7 @@ class Test(object):
             **kwargs
         ):
         self.name = name
+        
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
         self._out_folder = kwargs.get("out", "out")
@@ -250,7 +248,10 @@ class Test(object):
         # iperf 3 version
         # "Normally, the test data is sent from the client to the server,"
         # number_of_paths, 
-        cmd = "iperf3 -s --json --logfile=%s" % (self._out("server_iperf", self.name, ".log"),)
+        print("name = %r" % self.name)
+        cmd = "iperf3 -s --json --logfile={logfile}".format(
+                logfile=self._out("server_iperf", self.name, ".log")
+            )
 
         self.start_daemon(node, cmd)
 
@@ -336,23 +337,24 @@ class Test(object):
 
 
 
-class PrevenantTest(Test):
+class IperfTest(Test):
     """
     """
     def __init__(self, *args, **kwargs):
         """
         """
-        super().__init__(self, "Prevenant", *args)
+        super().__init__("Iperf", *args)
+        self.description = "iperf test"
 
     def setup(self, net, **kwargs ):
-        print("prevent setup")
+        print("iperf setup")
         check_reinject = True
         client = net.get('client')
         server = net.get('server')
         self.start_iperf_server(server)
         # subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
         # TODO temporary must have been prevenant here
-        run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
+        # run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
 
         super().setup(net, **kwargs)
 
@@ -579,7 +581,7 @@ class DackTest(Test):
 available_tests = {
     "dack":    DackTest,
     "tlp":     TlpTest,
-    "prevenant": PrevenantTest,
+    "iperf":   IperfTest,
     # "reinjection": ReinjectionTest,
 }
 
@@ -771,6 +773,8 @@ if __name__ == '__main__':
         help="Topology", default="asymetric")
     parser.add_argument("-c", "--capture", action="store_true", 
         help="capture packets", default=False)
+    parser.add_argument("-s", "--scheduler", choices=["fullmesh", "redundant", "netlink"],
+        help="Mptcp scheduler", default="fullmesh")
     parser.add_argument("-i", "--interactive", action="store_true",
         help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
@@ -787,7 +791,7 @@ if __name__ == '__main__':
     for name, test in available_tests.items():
         # 
         subparser = subparsers.add_parser(name,  # parents=[pcap_parser],
-            help='Converts pcap to a csv file')
+            help=test.description)
 
         test.init_subparser(subparser)
 

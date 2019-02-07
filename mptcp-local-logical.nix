@@ -80,7 +80,7 @@ let
 
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
-  # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp-manual;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_mptcp;
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;

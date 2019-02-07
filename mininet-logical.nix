@@ -17,7 +17,7 @@ let
         # /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix
 
         # my test module
-        /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
+        # /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
 
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         # /home/teto/dotfiles/nixpkgs/config-all.nix
@@ -75,7 +75,10 @@ let
     myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
     in lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ];
 
-  networking.mptcp.enable = true;
+  networking.mptcp = {
+    enable = true;
+    debug = true;
+  };
 
   networking.networkmanager = {
     enable=true;
@@ -89,6 +92,8 @@ let
   # [device]
   # match-device=interface-name:eth3
   # managed=1
+
+  # to prevent networkmanager from interfering with the mininet configuration
   networking.networkmanager.unmanaged = [
     "interface-name:r?-*"
     "interface-name:r?-*"
@@ -132,7 +137,8 @@ let
 
     # would be better with a dns name
     # so that we can download from
-    binaryCaches =  [ "http://192.168.128.1:8080" ];
+    # Look at the value of the defualt network (virbr1 most likely)
+    binaryCaches =  [ "http://192.168.122.1:8080" ];
     requireSignedBinaryCaches = false;
 
   };
