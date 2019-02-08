@@ -22,7 +22,7 @@ let
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         # /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/servers/common-server.nix
-        /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
+        # /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
         # for now don't use it
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];

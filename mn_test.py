@@ -39,7 +39,6 @@ from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
 
 # 
 from builtins import super
-# import future
 import mininet
 import functools
 import logging
@@ -167,8 +166,8 @@ class Test(object):
             name,
             # sysctl values
             aggr_dupack=0, aggr_rto=0,
-            mptcp_scheduler="default",
-            mptcp_path_manager="fullmesh",
+            # mptcp_scheduler="default",
+            # mptcp_path_manager="fullmesh",
             tcp_timestamps=1,
             **kwargs
         ):
@@ -186,8 +185,8 @@ class Test(object):
         except Exception as e:
             print("WARNING %s" % e)
 
-        run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
-        run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
+        # run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
+        # run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
         # os.system('sysctl -w net.mptcp.mptcp_debug=0')
         # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
@@ -201,13 +200,14 @@ class Test(object):
     def init_subparser(parser):
         return parser
 
-
-    def start_daemon(self, node, cmd):
+    # https://github.com/mininet/mininet/issues/857
+    def start_daemon(self, node, cmd, **kwargs):
 
         print("starting daemon ?")
         logging.info("starting %s" % cmd)
-        proc = node.popen(cmd)
+        proc = node.popen(cmd, **kwargs)
         self._popens.append(proc)
+        print("returncode", proc.returncode)
 
         if proc.poll():
             print("Failed to run ", cmd)
@@ -227,7 +227,15 @@ class Test(object):
         # dumpcap -q -w
         # for tcpdump use -U
         # client.cmd(cmd,)
-        self.start_tcpdump(node, **kwargs)
+
+        # BACKUP solution
+        # self.start_tcpdump(node, **kwargs)
+
+        # The file "XX.pcapng" appears to have been cut short in the middle of a packet
+        # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
+        cmd = ["tshark", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
+        # node.cmd(cmd)
+        self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
     # def start_iperf_client(self, ):
     #     cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
@@ -253,6 +261,8 @@ class Test(object):
                 logfile=self._out("server_iperf", self.name, ".log")
             )
 
+        # just as a security
+        node.cmd("pkill -9 iperf")
         self.start_daemon(node, cmd)
 
     def start_webfs(self, node, **kwargs):
@@ -296,10 +306,6 @@ class Test(object):
         suffix = '_'.join(map(str, args))
         return os.path.join(self._out_folder, suffix )
 
-    # def parser():
-        # 
-        # argparse.ArgumentParser
-
     def tearDown(self):
         logging.info("Tearing down")
 
@@ -309,30 +315,17 @@ class Test(object):
 
             print("retcode ", proc.returncode)
             if proc.returncode is None:
-                proc.terminate()
+                # proc.terminate()  # SIGTERM
+                proc.send_signal(signal.SIGINT)  # C-C
 
             print("server retcode ", proc.returncode)
+            if proc.returncode is None:
+                proc.kill()  # SIGKILL
             # os.system('pkill -f \'tshark\'')
-
-    # def run_xp(self, run):
-    #     pass
-
-    # @abc.abstractmethod
-    # def run_xp(self, net, run, **kwargs):
-    #     """
-    #     """
-    #     pass
-
-
-    # out, err, exit = errFail(cmd)
-    # print("process output: %s", out)
 
     @abc.abstractmethod
     def runExperiments(self, net, **kwargs):
-        
         pass
-        # for run in range(args.get("runs", 1)):
-        #     test.run_xp(net, run, **args)
 
 
 
@@ -360,6 +353,9 @@ class IperfTest(Test):
 
     def tearDown(self):
         logging.info("Tearing down")
+
+        CLI(net)
+        super().tearDown()
 
     # def runExperiments(self, net, **kwargs):
     #     """
@@ -773,8 +769,10 @@ if __name__ == '__main__':
         help="Topology", default="asymetric")
     parser.add_argument("-c", "--capture", action="store_true", 
         help="capture packets", default=False)
-    parser.add_argument("-s", "--scheduler", choices=["fullmesh", "redundant", "netlink"],
-        help="Mptcp scheduler", default="fullmesh")
+    parser.add_argument("-s", "--scheduler", choices=["default", "redundant", "roundrobin", "prevenant"],
+        help="Mptcp scheduler", default="default")
+    parser.add_argument("-p", "--path-manager", choices=["fullmesh", "ndiffports", "netlink"],
+        help="Mptcp path manager", default="fullmesh")
     parser.add_argument("-i", "--interactive", action="store_true",
         help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
@@ -798,6 +796,9 @@ if __name__ == '__main__':
 
     global args
     args, unknown_args = parser.parse_known_args()
+
+    run_sysctl("net.mptcp.mptcp_scheduler", args.scheduler)
+    run_sysctl('net.mptcp.mptcp_path_manager', args.path_manager)
     dargs = vars(args)
 
     setLogLevel(args.debug)
@@ -858,4 +859,3 @@ if __name__ == '__main__':
     #     number_of_paths = [int(args.number_of_subflows)]
     # else:
     #     number_of_paths = [1, 2, 3]
-    
