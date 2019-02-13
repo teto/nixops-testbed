@@ -11,6 +11,9 @@
 # -*- coding: utf-8 -*-
 # but it will check just the first 2 lines :/ https://www.python.org/dev/peps/pep-0263/#defining-the-encoding
 
+# TODO add CAP_SYS_ADMIN to be able to run sysctl without 
+
+
 # todo add python ?
 """
 derived from mininet_progmp_helper.py
@@ -233,7 +236,10 @@ class Test(object):
 
         # The file "XX.pcapng" appears to have been cut short in the middle of a packet
         # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
-        cmd = ["tshark", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
+        pcap_filename = self._out("%s" % node, number_of_paths, ".pcapng")
+        pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
+        cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename ]
+        # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
         # node.cmd(cmd)
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
@@ -336,7 +342,7 @@ class IperfTest(Test):
     def __init__(self, *args, **kwargs):
         """
         """
-        super().__init__("Iperf", *args)
+        super().__init__("Iperf", *args, **kwargs)
         self.description = "iperf test"
 
     def setup(self, net, **kwargs ):
@@ -826,6 +832,9 @@ if __name__ == '__main__':
     # installs IPs
     my_topo.hook(net)
     net.start()
+
+    print("args dict")
+    print(dargs)
 
     test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
     logging.info("Launching test %s" % (args.test_type))
