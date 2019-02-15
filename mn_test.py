@@ -27,6 +27,8 @@ from time import sleep
 import argparse
 import signal
 import subprocess
+import tempfile
+import shutil
 # from progmp import ProgMP
 
 from asym_link import AsymTCLink
@@ -165,7 +167,7 @@ def run_sysctl(key, value, **popenargs):
 
 class Test(object):
     description = "default description"
-    def __init__(self, 
+    def __init__(self,
             name,
             # sysctl values
             aggr_dupack=0, aggr_rto=0,
@@ -175,13 +177,13 @@ class Test(object):
             **kwargs
         ):
         self.name = name
-        
+
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
         self._out_folder = kwargs.get("out", "out")
         run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
         run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
-        # 
+
         try:
             run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
             run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
@@ -237,7 +239,7 @@ class Test(object):
         # The file "XX.pcapng" appears to have been cut short in the middle of a packet
         # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
         pcap_filename = self._out("%s" % node, number_of_paths, ".pcapng")
-        pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
+        # pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
         cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename ]
         # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
         # node.cmd(cmd)
@@ -360,7 +362,7 @@ class IperfTest(Test):
     def tearDown(self):
         logging.info("Tearing down")
 
-        CLI(net)
+        # CLI(net)
         super().tearDown()
 
     # def runExperiments(self, net, **kwargs):
@@ -814,11 +816,11 @@ if __name__ == '__main__':
     print("CWD=", os.getcwd())
     print("creating %s" % args.out)
     subprocess.check_call("mkdir -p %s" % args.out, shell=True)
-    
+
     # _out = functools.partial(_gout, kwargs.get('out'))
     number_of_paths = dargs.get('number_of_paths', 1)
 
-    # using 
+    # using
     topo = available_topologies[args.topo]
 
     logging.info("Selected topology %s" % (args.topo))
@@ -836,7 +838,15 @@ if __name__ == '__main__':
     print("args dict")
     print(dargs)
 
-    test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
+    tempdir = tempfile.mkdtemp()
+
+    # context manager clean up the folder upon exception
+    # with tempfile.TemporaryDirectory() as tempdir:
+    # tempdir.name
+    # dargs["out"] = tempdir
+    test = (available_tests.get(args.test_type))(**dargs , )  # type: ignore
+    # hack
+    test._out_folder = tempdir
     logging.info("Launching test %s" % (args.test_type))
 
     try:
@@ -856,6 +866,9 @@ if __name__ == '__main__':
     finally:
         test.tearDown()
         net_cleanup()
+
+        print("Moving from %s to %s" % (tempdir, dargs["out"]))
+        shutil.move(tempdir, dargs["out"])
 
     print("finished")
 
