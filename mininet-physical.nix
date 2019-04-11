@@ -28,6 +28,8 @@
       # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
       kernel="/home/teto/bzImage";
 
+      storagePool = "ext";
+
       # this is the default
       # networks = [ { source = "default"; type= "virtual"; } ];
       extraDomainXML = ''

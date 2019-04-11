@@ -60,7 +60,7 @@ let
       # pygments # for pygmentize and minted in latex
       mypy
       # pyls-mypy # on le desactive sinon il genere des
-      # python-language-server
+      python-language-server
       pycodestyle
     ]
       # ++ lib.optionals ( pkgs ? pyls-mypy) [ pyls-mypy ]

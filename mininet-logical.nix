@@ -6,8 +6,8 @@ let
   tpl = { config, pkgs, lib,  ... }:
   let
     # myKernel = pkgs.mptcp94-local-stable;
-    myKernel = pkgs.linux_mptcp_trunk;
-    myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
+    myKernel = pkgs.linux_mptcp_trunk_raw;
+    myOverlay = /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix;
   in
   ({
     # prints everything superior to this number
@@ -23,6 +23,7 @@ let
         # /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/servers/common-server.nix
         /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
+        # /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
         # for now don't use it
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
@@ -39,10 +40,11 @@ let
 
   networking.firewall.enable = false;
 
+
   # mptcp-manual
   # boot.kernelPackages = pkgs.linuxPackages_mptcp-local;
   # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.mptcp94-local-stable;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux;
+  # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux;
 
   # WARNING: pick a kernel along the same version as tc ?
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
@@ -70,15 +72,16 @@ let
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
-
-  nixpkgs.overlays = let
-    myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
-    in lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ];
+  nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ];
 
   networking.mptcp = {
     enable = true;
     debug = true;
+    pathManager = "netlink";
+    # package = pkgs.linux_mptcp_trunk_raw;
+    package = myKernel;
   };
+
 
   networking.networkmanager = {
     enable=true;
@@ -110,7 +113,7 @@ let
   home-manager.users.teto = { ... }:
   {
     imports = [
-      /home/teto/dotfiles/nixpkgs/home-common.nix 
+      /home/teto/dotfiles/nixpkgs/home-common.nix
     ];
   };
 
