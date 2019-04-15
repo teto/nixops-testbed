@@ -5,8 +5,8 @@
 let
   tpl = { config, pkgs, lib,  ... }:
   let
-    # myKernel = pkgs.mptcp94-local-stable;
-    myKernel = pkgs.linux_mptcp_trunk_raw;
+    # myKernel = pkgs.linux_mptcp_trunk_raw;
+    myKernel = pkgs.linux_mptcp;
     myOverlay = /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix;
   in
   ({
@@ -64,11 +64,13 @@ let
     tmux
     webfs
     # (python.withPackages(ps: with ps; [ mininet-python ] ))
-
-
-    (linuxPackagesFor myKernel).bcc
-    myKernel.dev
-  ];
+  ]
+  # enable if we use bcc, or just mount it !
+  # ++ lib.optionals false [
+  #   (linuxPackagesFor myKernel).bcc
+  #   myKernel.dev
+  # ]
+  ;
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
 
