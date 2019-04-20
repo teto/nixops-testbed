@@ -84,6 +84,8 @@ dataAmount = "1M"
 FILE_TO_TRANSFER="test_file"
 EBPF_DROPPER_BYTECODE="ebpf_dropper.o"
 
+# is there a way to autodiscover ?
+SCHEDULERS = ["default", "redundant", "roundrobin", "prevenant", "ecf" ]
 # can get parameters from
 
 topoWireLessHetero = [
@@ -777,7 +779,7 @@ if __name__ == '__main__':
         help="Topology", default="asymetric")
     parser.add_argument("-c", "--capture", action="store_true",
         help="capture packets", default=False)
-    parser.add_argument("-s", "--scheduler", choices=["default", "redundant", "roundrobin", "prevenant"],
+    parser.add_argument("-s", "--scheduler", choices=SCHEDULERS,
         help="Mptcp scheduler", default="default")
     parser.add_argument("-p", "--path-manager", choices=["fullmesh", "ndiffports", "netlink"],
         help="Mptcp path manager", default="fullmesh")
@@ -844,7 +846,7 @@ if __name__ == '__main__':
     # with tempfile.TemporaryDirectory() as tempdir:
     # tempdir.name
     # dargs["out"] = tempdir
-    test = (available_tests.get(args.test_type))(**dargs , )  # type: ignore
+    test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
     # hack
     test._out_folder = tempdir
     logging.info("Launching test %s" % (args.test_type))
