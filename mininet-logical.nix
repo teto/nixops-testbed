@@ -34,9 +34,19 @@ let
     ln -s /dev/sda1 /dev/root
 
     # eventually to work around https://github.com/NixOS/nixops/issues/931#issuecomment-385662909
-    mount -o remount,rw /nix/store
-    chown -R root:root /nix/store
+    # mount -o remount,rw /nix/store
+    # chown -R root:root /nix/store
   '';
+
+  system.activationScripts.nixops-vm-fix-931 = {
+    text = ''
+      if ls -l /nix/store | grep sudo | grep -q nogroup; then
+        mount -o remount,rw  /nix/store
+        chown -R root:nixbld /nix/store
+      fi
+    '';
+    deps = [];
+  };
 
   networking.firewall.enable = false;
 
