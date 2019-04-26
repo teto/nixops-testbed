@@ -17,3 +17,6 @@ https://github.com/francoismichel/ebpf_dropper/tree/networking_2019
 
 
 
+https://multipath-tcp.org/pmwiki.php/Users/Tools
+  ip link set dev eth0 multipath off
+  ip link set dev eth0 multipath backup

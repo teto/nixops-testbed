@@ -7,7 +7,8 @@ let
   let
     # myKernel = pkgs.linux_mptcp_trunk_raw;
     myKernel = pkgs.linux_mptcp;
-    myOverlay = /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix;
+    dotfiles = /home/teto/dotfiles;
+    myOverlay = dotfiles + /config/nixpkgs/overlays/kernels.nix;
   in
   ({
     # prints everything superior to this number
@@ -28,25 +29,21 @@ let
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
 
-
+  # eventually to work around https://github.com/NixOS/nixops/issues/931#issuecomment-385662909
+  # mount -o remount,rw /nix/store
+  # chown -R root:root /nix/store
   boot.postBootCommands = ''
     # after first deploy
     ln -s /dev/sda1 /dev/root
 
-    # eventually to work around https://github.com/NixOS/nixops/issues/931#issuecomment-385662909
-    # mount -o remount,rw /nix/store
-    # chown -R root:root /nix/store
   '';
 
-  system.activationScripts.nixops-vm-fix-931 = {
-    text = ''
-      if ls -l /nix/store | grep sudo | grep -q nogroup; then
-        mount -o remount,rw  /nix/store
-        chown -R root:nixbld /nix/store
-      fi
-    '';
-    deps = [];
-  };
+  system.activationScripts.nixops-vm-fix-931 = ''
+    if ls -l /nix/store | grep sudo | grep -q nogroup; then
+      mount -o remount,rw  /nix/store
+      chown -R root:nixbld /nix/store
+    fi
+  '';
 
   networking.firewall.enable = false;
 
@@ -62,10 +59,10 @@ let
 
   environment.systemPackages = with pkgs; [
     # flent # https://flent.org/intro.html#quick-start
-    gdb
-    owamp
+    # gdb
+    owamp # use module instead ?
     ethtool # needed
-    netperf
+    # netperf
     # tshark
     home-manager
     tcpdump
@@ -74,6 +71,10 @@ let
     tmux
     webfs
     # (python.withPackages(ps: with ps; [ mininet-python ] ))
+
+    # find some ways to move it to networking.mptcp
+    # c ca qui foire
+    iproute_mptcp94
   ]
   # enable if we use bcc, or just mount it !
   # ++ lib.optionals false [
@@ -143,6 +144,8 @@ let
            # { command = ''/home/baz/cmd2.sh ""''; options = [ "SETENV" ] ; } ] ; groups = [ "bar" ] ; runAs = "foo"; } ]
   nix = {
   # otherwise nix-shell won't work
+
+  # options.nix.nixPath.default 
     nixPath = [
           # "nixos-unstable=https://github.com/nixos/nixpkgs-channels/archive/nixos-unstable.tar.gz"
           "nixpkgs=/home/teto/nixpkgs"

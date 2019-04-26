@@ -41,7 +41,8 @@ in
 
     # echo "${builtins.toString nvimConfig.python3Env}"
     shellHook = ''
-      echo "toto"
+     export PATH="${my_nvim}/bin:$PATH"
+     echo "toto"
       echo "${my_nvim}"
     '';
   }
