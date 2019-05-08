@@ -1,4 +1,6 @@
 
+# deploy with 
+> nixops deploy -I nixos-config=/home/teto/dotfiles/nixpkgs/configuration-lenovo.nix  -dmn5
 
 # generate ebpf bytecode
 

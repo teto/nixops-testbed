@@ -11,6 +11,8 @@
 # -*- coding: utf-8 -*-
 # but it will check just the first 2 lines :/ https://www.python.org/dev/peps/pep-0263/#defining-the-encoding
 
+# https://gist.github.com/tovask/316f0dc855f2459042af403688590a7f
+# https://github.com/SoonyangZhang/mininet-mptcp/tree/master/topology
 # TODO add CAP_SYS_ADMIN to be able to run sysctl without
 
 
@@ -28,6 +30,7 @@ import signal
 import subprocess
 import tempfile
 import shutil
+import time  # for sleep
 # from progmp import ProgMP
 
 # python > 3.7
@@ -78,7 +81,13 @@ log.addHandler(ch)
 
 # todo make it so that we just have to unpack the parameter
  # -n, --bytes n[KM]
+# TODO remove
 net  = None
+
+
+SERVER_NAME = 'server'
+CLIENT_NAME = 'client'
+GW_NAME = 'gateway'
 
 dataAmount = "1M"
 
@@ -170,19 +179,21 @@ def run_sysctl(key, value, **popenargs):
 
 
 # TODO look into
-# @dataclass
 class Test(object):
     description = "default description"
     def __init__(self,
             name,
             # sysctl values
             aggr_dupack=0, aggr_rto=0,
-            # mptcp_scheduler="default",
+            mptcp_scheduler=None,
             # mptcp_path_manager="fullmesh",
             tcp_timestamps=1,
+            net=None,
             **kwargs
         ):
         self.name = name
+        assert net
+        self.net = net
 
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
@@ -290,7 +301,7 @@ class Test(object):
     # setup as an abstract to implement
     def setup(self, net, **kwargs):
         client = net.get('client')
-        server = net.get('server')
+        server = net.get(SERVER_NAME)
         gateway = net.get('gateway')
         # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
 
@@ -398,12 +409,12 @@ class IperfTest(Test):
     #         for run in range(args.get("runs", 1)):
     #             self.run_xp(net, run, **args)
 
-    def runExperiments(self, net, **kwargs):
+    def runExperiments(self, **kwargs):
         """
         """
         # TODO
         run = 0
-        client = net.get('client')
+        client = self.net.get('client')
 
         # need to generate a situation with frequent retransmissions
         for run in range(kwargs.get("runs", 1)):
@@ -434,7 +445,7 @@ class IperfWithLostLinks(IperfTest):
         """
         """
         super().__init__("Iperf", *args, **kwargs)
-        self.description = "iperf test with intermiittent link"
+        self.description = "iperf test with intermittent link"
 
     def run_xp(self, client, run, **kwargs):
         # in iperf3, the client sends the data so...
@@ -455,9 +466,11 @@ class IperfWithLostLinks(IperfTest):
         client.cmdPrint(cmd)
 
         # TODO after some time cut some link
+        # in seconds
+        time.sleep(1)
+        client.set_mptcp_behavior("" , "off")
         # 
         # TODO cut the link off than reput it to on
-        # topo.set_mptcp_behavior(<link> , "off")
 
 
 class TlpTest(Test):
@@ -527,6 +540,7 @@ class TlpTest(Test):
 #         # write avec ou sans dupack puis la valeur
 #         return elapsed_ms
 
+
 class DackTest(Test):
 
     def __init__(self, *args, **kwargs):
@@ -565,7 +579,7 @@ class DackTest(Test):
             for run in range(runs):
                 elapsed_ms = self.run_xp(net, run, client, **kwargs)
 
-                writer.writerow([ int(aggr_dupack), elapsed_ms])
+                writer.writerow([int(aggr_dupack), elapsed_ms])
 
 
         import csv
@@ -586,8 +600,11 @@ class DackTest(Test):
         Start an http server, download a file and saves the transfer time into a csv
         """
         gateway = net.get('gateway')
+        server = net.get('server')
         # cmd = "wget http://%s/%s -O /dev/null"
         cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
+        # TODO use
+        server.getIP()
         cmd = cmd % ("7.7.7.7:8000", fileToDownload)
         #     import re
         # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
@@ -645,7 +662,7 @@ class StaticTopo(Topo):
 
                      r1
                   /      \
-           client         r3  ---  server
+           client         gateway  ---  server
                   \      /
                      r2
 
@@ -671,8 +688,9 @@ class StaticTopo(Topo):
         # https://github.com/mininet/mininet/issues/823
 
         # for r, cmd in [(self.r3, 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
+        # defaults to 0
         for i, params in enumerate(topo):
-            name = 'r' + str(i + 1)
+            name = self.getName(i)
             # print("NAME", name)
             s = self.addHost(name)
 
@@ -694,9 +712,13 @@ class StaticTopo(Topo):
         link2 = self.addLink(server, gateway, )
         print("just for testing, link type = ", type(link2))
 
+    def getName(self, idx):
+        return 'r' + str(idx + 1)
 
-    def set_mptcp_behavior(self, intf, status):
-        """ for a link, set status
+    def set_mptcp_behavior(self, intf: str, status):
+        """
+        for a link, set status
+        intf: interface name
         """
 
         assert status in [ "on", "off", "backup" ]
@@ -709,40 +731,43 @@ class StaticTopo(Topo):
 
         client = network.get("client")
         server = network.get("server")
-        r1 = network.get("r1")
-        r2 = network.get("r2")
-        r3 = network.get("gateway")
+        r1 = network.get(self.getName(0))
+        r2 = network.get(self.getName(1))
+        gw = network.get("gateway")
+        print("client.name=", client.name)
 
         client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
         client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
+
         r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
         r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
 
         r2.setIP('4.4.4.1', 24, '%s-eth0' % r2.name)
         r2.setIP('6.6.6.1', 24, '%s-eth1' % r2.name)
 
-        r3.setIP('5.5.5.2', 24, '%s-eth0' % r3.name)
-        r3.setIP('6.6.6.2', 24, '%s-eth1' % r3.name)
-        r3.setIP('7.7.7.1', 24, '%s-eth2' % r3.name)
+        gw.setIP('5.5.5.2', 24, '%s-eth0' % gw.name)
+        gw.setIP('6.6.6.2', 24, '%s-eth1' % gw.name)
+        gw.setIP('7.7.7.1', 24, '%s-eth2' % gw.name)
         server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
 
-        client.cmd('ip rule add from 3.3.3.3 table 1')
-        client.cmd('ip rule add from 4.4.4.4 table 2')
-        client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
-        client.cmd('ip route add default from 3.3.3.3 via 3.3.3.1 dev %s-eth0 table 1' % client.name)
-        client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
-        client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
-        client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
+        # Isn't that handled 
+        # client.cmd('ip rule add from 3.3.3.3 table 1')
+        # client.cmd('ip rule add from 4.4.4.4 table 2')
+        # client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
+        # client.cmd('ip route add default from 3.3.3.3 via 3.3.3.1 dev %s-eth0 table 1' % client.name)
+        # client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
+        # client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
+        # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
         server.cmd('ip route add default via 7.7.7.1')
 
         # should already be shared
         r1.cmd('sysctl -w net.ipv4.ip_forward=1')
         r2.cmd('sysctl -w net.ipv4.ip_forward=1')
-        r3.cmd('sysctl -w net.ipv4.ip_forward=1')
+        gw.cmd('sysctl -w net.ipv4.ip_forward=1')
 
-        r3.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % r3.name)
-        r3.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % r3.name)
+        gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
+        gw.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % gw.name)
         r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
         r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
         r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
@@ -874,7 +899,8 @@ if __name__ == '__main__':
     net = Mininet(
         topo=my_topo,
         link=AsymTCLink,
-        host=MptcpHost
+        host=MptcpHost,
+        cleanup=True
     )
 
     # installs IPs
@@ -890,6 +916,7 @@ if __name__ == '__main__':
     # with tempfile.TemporaryDirectory() as tempdir:
     # tempdir.name
     # dargs["out"] = tempdir
+    dargs.update(net=net)
     test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
     # hack
     test._out_folder = tempdir
@@ -900,17 +927,17 @@ if __name__ == '__main__':
         server = net.get('server')
 
         # print("setup")
-        test.setup(net, **dargs)
+        test.setup(**dargs)
 
         # print("running xps")
-        test.runExperiments(net, **dargs)
+        test.runExperiments(**dargs)
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
     except Exception as e:
         logging.exception("Exception triggered ")
     finally:
-        test.tearDown()
+        test.tearDown() # type: ignore
         net_cleanup()
 
         print("Moving from %s to %s" % (tempdir, dargs["out"]))

@@ -7,8 +7,8 @@ class AsymTCLink( TCLink ):
     def __init__( self, node1, node2, port1=None, port2=None,
                    intfName1=None, intfName2=None,
                    addr1=None, addr2=None, **params):
-         p1 = {}
-         p2 = {}
+         p1 = {} # type: ignore
+         p2 = {} # type: ignore
          if 'params1' in params:
              p1 = params['params1']
              del params['params1']

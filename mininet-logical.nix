@@ -23,11 +23,12 @@ let
         /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
         # /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/servers/common-server.nix
-        /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
-        # /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
         # for now don't use it
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
+
+  programs.wireshark.enable = true; # installs setuid
+  programs.wireshark.package = pkgs.tshark; # which one
 
   # eventually to work around https://github.com/NixOS/nixops/issues/931#issuecomment-385662909
   # mount -o remount,rw /nix/store
@@ -101,7 +102,6 @@ let
     logLevel="DEBUG";
   };
 
-  # IT MUST HAVE MININET !!
   programs.mininet.enable = true;
 
   # see networkmanager.conf
@@ -110,12 +110,13 @@ let
   # managed=1
 
   # to prevent networkmanager from interfering with the mininet configuration
+  # what kind of error did trigger that ?
   networking.networkmanager.unmanaged = [
     "interface-name:r?-*"
     "interface-name:r?-*"
-    "interface-name:client-*"
-    "interface-name:server-*"
-    ];
+    # "interface-name:client-*"
+    # "interface-name:server-*"
+  ];
 
 
   # system.stateVersion = "18.03";
