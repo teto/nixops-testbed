@@ -1,4 +1,6 @@
 
+By default, the hosts are put in their own namespace, while switches and the controller are in the root namespace. To put switches in their own namespace, pass the --innamespace option:
+
 # deploy with 
 > nixops deploy -I nixos-config=/home/teto/dotfiles/nixpkgs/configuration-lenovo.nix  -dmn5
 

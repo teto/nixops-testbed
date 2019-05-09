@@ -36,7 +36,7 @@ import time  # for sleep
 # python > 3.7
 from dataclasses import dataclass, field
 
-from asym_link import AsymTCLink
+# from asym_link import AsymTCLink
 from mininet.cli import CLI
 from mininet.topo import Topo
 from mininet.net import Mininet
@@ -47,6 +47,9 @@ from mininet.clean import cleanup as net_cleanup
 from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
                            numCores, retry, mountCgroups )
 
+import ipaddress as ip
+# ipaddress.IPv4Network
+# list(ip_network('192.0.2.0/29').hosts())
 #
 from builtins import super
 import mininet
@@ -176,6 +179,47 @@ def run_sysctl(key, value, **popenargs):
     # todo parse output of check_output instead
     # subprocess.check_call(["sysctl","-w","%s=%s" % (key, value)], shell=True)
     subprocess.check_call(["sysctl -w %s='%s'" % (key, value)], shell=True)
+
+
+
+# Problem we wanna solve here:
+# class MPTCPIntf(Intf):
+#     def setIP(self, *args, **kwargs):
+#         pass
+#     def runHook()
+#         pass 
+    # updateIP
+    # updateAddr
+
+def runHookOnInterfaces (node, hook_filename="/home/teto/testbed/mptcp_up.sh"):
+    # would like to use NetworkManager's hooks to generate the MPTCP routing table
+    # on each host
+    # https://mail.gnome.org/archives/networkmanager-list/2016-April/msg00083.html
+    # https://mail.gnome.org/archives/networkmanager-list/2015-October/msg00020.html
+    for intf in node.intfList():
+        cmd = "sh {} {action} {status}".format(hook_filename, action="fake", status="up")
+        # or pexec ?
+        # seems like we can't pass a custom environment with 
+        env = os.environ
+        log.info("building MPTCP routing table for on node %s" % node.name)
+
+
+        #
+        gw = intf.link.node1 if intf.link.node2 == node else intf.link.node1
+        env.update({
+            "DEVICE_IFACE": intf.name,
+            # "DHCP4_IP_ADDRESS": intf.IP(),
+            "IP4_ADDRESS_0": intf.IP(),
+            "DEVICE_IP_IFACE": intf.name,
+            # (replace last number)
+            "IP4_GATEWAY": 
+            # "DHCP4_NETWORK_NUMBER": 
+            # TODO might need to pass it !!
+            # "DHCP4_ROUTERS": 
+        })
+        out, err, ret = node.pexec(cmd, env=env)
+        assert ret == 0, err
+        print(out)
 
 
 # TODO look into
@@ -700,11 +744,6 @@ class StaticTopo(Topo):
             # })
             self.addLink(client, s, **params)
             link = self.addLink(s, gateway, loss=0, )
-            # add route
-            # self.r3.cmd("ip route add {dest} via 5.5.5.1 dev %s-eth0".format(
-            #     dest=3.3.3.0/24))
-            # % self.r3_name)
-            # print("link %r" % link)
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
 
 
@@ -726,6 +765,20 @@ class StaticTopo(Topo):
         msg = "ip link set dev %s multipath %s" % (intf, status)
         subprocess.check_call(msg)
 
+    def network_generator(client, server):
+        """
+        Generates 
+
+        """
+        # net = ip.IPv4Network("3.3.3.0/24")
+        for i in range(2):
+            r = self.getName(i)
+            c2r = ip.IPv4Network("3.%d.3.0/24" % i)
+            s2r = ip.IPv4Network("4.%d.3.0/24" % i)
+            hosts()
+
+            client.setIP('3.3.3.1', 24, '%s-eth0' % client.name)
+            server.setIP()
 
     def hook(self, network):
 
@@ -736,8 +789,6 @@ class StaticTopo(Topo):
         gw = network.get("gateway")
         print("client.name=", client.name)
 
-        client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
-        client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
 
         r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
         r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
@@ -748,7 +799,9 @@ class StaticTopo(Topo):
         gw.setIP('5.5.5.2', 24, '%s-eth0' % gw.name)
         gw.setIP('6.6.6.2', 24, '%s-eth1' % gw.name)
         gw.setIP('7.7.7.1', 24, '%s-eth2' % gw.name)
+
         server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
+        server.cmd("ip route add default via %s" % "7.7.7.1")
 
         # Isn't that handled 
         # client.cmd('ip rule add from 3.3.3.3 table 1')
@@ -759,7 +812,7 @@ class StaticTopo(Topo):
         # client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
         # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
-        server.cmd('ip route add default via 7.7.7.1')
+
 
         # should already be shared
         r1.cmd('sysctl -w net.ipv4.ip_forward=1')
@@ -768,6 +821,7 @@ class StaticTopo(Topo):
 
         gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
         gw.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % gw.name)
+
         r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
         r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
         r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
@@ -776,6 +830,15 @@ class StaticTopo(Topo):
         r2.cmd('ip route add 3.3.3.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
         r2.cmd('ip route add 5.5.5.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
 
+        client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
+        client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
+
+        # ideally we could let NetworkManager handle this
+        runHookOnInterfaces(client)
+        runHookOnInterfaces(server)
+        client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
+        client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
+        # gw.cmdPrint('ip route add default scope global via 5.5.5.1 dev %s-eth0' % gw.name)
 
 def attach_filter(node):
     """
@@ -898,9 +961,11 @@ if __name__ == '__main__':
     my_topo = StaticTopo(topo=topo, number_of_paths=number_of_paths, )
     net = Mininet(
         topo=my_topo,
-        link=AsymTCLink,
+        link=TCLink,
         host=MptcpHost,
-        cleanup=True
+        cleanup=True,
+        # inNamespace=False,
+        # build=
     )
 
     # installs IPs
@@ -938,7 +1003,10 @@ if __name__ == '__main__':
         logging.exception("Exception triggered ")
     finally:
         test.tearDown() # type: ignore
-        net_cleanup()
+
+        # TODO reestablish
+        # disabled in order to check for journald logs in /j
+        # net_cleanup() 
 
         print("Moving from %s to %s" % (tempdir, dargs["out"]))
         shutil.move(tempdir, dargs["out"])

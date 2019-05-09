@@ -100,26 +100,33 @@ let
   networking.networkmanager = {
     enable=true;
     logLevel="DEBUG";
+
+    # device specific configuration
+    # https://developer.gnome.org/NetworkManager/1.18/NetworkManager.conf.html
+    unmanaged = [
+      "interface-name:r?-*"
+      "interface-name:gateway-*"
+      # "except-interface:"
+      "interface-name:client-*"
+      "interface-name:server-*"
+    ];
+  # see networkmanager.conf
+  # extraConfig = ''
+  # [device]
+  # match-device=interface-name:client-*
+  # managed=1
+  # # ignore-carrier
+  # '';
+
+  # to prevent networkmanager from interfering with the mininet configuration
+  # what kind of error did trigger that ?
+
+    # dns = "none";
   };
 
   programs.mininet.enable = true;
 
-  # see networkmanager.conf
-  # [device]
-  # match-device=interface-name:eth3
-  # managed=1
 
-  # to prevent networkmanager from interfering with the mininet configuration
-  # what kind of error did trigger that ?
-  networking.networkmanager.unmanaged = [
-    "interface-name:r?-*"
-    "interface-name:r?-*"
-    # "interface-name:client-*"
-    # "interface-name:server-*"
-  ];
-
-
-  # system.stateVersion = "18.03";
 
   # owampd will run, then use owping to test
   # services.owamp.enable = true;
