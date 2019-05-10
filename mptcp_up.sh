@@ -32,6 +32,7 @@ if [ $(grep -c "$DEVICE_IFACE" "$RT_TABLE") -eq 0 ]; then
 	echo "$NUM  $DEVICE_IFACE" >> "$RT_TABLE"
 fi
 
+# TODO do it for ipv6 too
 # GATEWAY=
 if [ -n "$DHCP4_IP_ADDRESS" ]; then
 	SUBNET=`echo $IP4_ADDRESS_0 | cut -d \   -f 1 | cut -d / -f 2`
@@ -57,8 +58,10 @@ else
 	# via "$GATEWAY"
 	# la il nous manque des GW pour la configuration statique :/
 	# set -e
+	if [ -z "$IP4_GATEWAY" ]; then
+		ip route add table "$DEVICE_IFACE" default via "$IP4_GATEWAY" dev "$DEVICE_IFACE"
+	fi
 	ip route add table "$DEVICE_IFACE" default  dev "$DEVICE_IP_IFACE" scope link
-	ip route add table "$DEVICE_IFACE" default via "$IP4_GATEWAY" dev "$DEVICE_IFACE"
 	ip rule add from "$IPADDR" table "$DEVICE_IFACE"
 fi
 

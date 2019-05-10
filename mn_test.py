@@ -191,35 +191,38 @@ def run_sysctl(key, value, **popenargs):
     # updateIP
     # updateAddr
 
-def runHookOnInterfaces (node, hook_filename="/home/teto/testbed/mptcp_up.sh"):
-    # would like to use NetworkManager's hooks to generate the MPTCP routing table
-    # on each host
-    # https://mail.gnome.org/archives/networkmanager-list/2016-April/msg00083.html
-    # https://mail.gnome.org/archives/networkmanager-list/2015-October/msg00020.html
-    for intf in node.intfList():
-        cmd = "sh {} {action} {status}".format(hook_filename, action="fake", status="up")
-        # or pexec ?
-        # seems like we can't pass a custom environment with 
-        env = os.environ
-        log.info("building MPTCP routing table for on node %s" % node.name)
+def runHookOnInterface (intf, gateway, hook_filename="/home/teto/testbed/mptcp_up.sh"):
+    """
+    call a script to setup mptcp on a specific interface
+    """
+    # or pexec ?
+    # seems like we can't pass a custom environment with 
+    log.info("building MPTCP routing table for intf %s" % intf.name)
+
+    #
+    # gw = intf.link.node1 if intf.link.node2 == node else intf.link.node1
+    env = os.environ
+    env.update({
+        "DEVICE_IFACE": intf.name,
+        # "DHCP4_IP_ADDRESS": intf.IP(),
+        "IP4_ADDRESS_0": intf.IP(),
+        "DEVICE_IP_IFACE": intf.name,
+        # (replace last number)
+        "IP4_GATEWAY": gateway
+    })
+    cmd = "sh {} {action} {status}".format(hook_filename, action="fake", status="up")
+    out, err, ret = node.pexec(cmd, env=env)
+    assert ret == 0, err
+    print(out)
 
 
-        #
-        gw = intf.link.node1 if intf.link.node2 == node else intf.link.node1
-        env.update({
-            "DEVICE_IFACE": intf.name,
-            # "DHCP4_IP_ADDRESS": intf.IP(),
-            "IP4_ADDRESS_0": intf.IP(),
-            "DEVICE_IP_IFACE": intf.name,
-            # (replace last number)
-            "IP4_GATEWAY": 
-            # "DHCP4_NETWORK_NUMBER": 
-            # TODO might need to pass it !!
-            # "DHCP4_ROUTERS": 
-        })
-        out, err, ret = node.pexec(cmd, env=env)
-        assert ret == 0, err
-        print(out)
+# def runHookOnAllInterfaces (node, gateway=None, hook_filename="/home/teto/testbed/mptcp_up.sh"):
+#     # would like to use NetworkManager's hooks to generate the MPTCP routing table
+#     # on each host
+#     # https://mail.gnome.org/archives/networkmanager-list/2016-April/msg00083.html
+#     # https://mail.gnome.org/archives/networkmanager-list/2015-October/msg00020.html
+#     for intf in node.intfList():
+#         runHookOnInterface( )
 
 
 # TODO look into
@@ -765,79 +768,102 @@ class StaticTopo(Topo):
         msg = "ip link set dev %s multipath %s" % (intf, status)
         subprocess.check_call(msg)
 
-    def network_generator(client, server):
+
+    def network_generator(self, client, server):
         """
         Generates 
-
+        TODO extend later with
         """
-        # net = ip.IPv4Network("3.3.3.0/24")
-        for i in range(2):
-            r = self.getName(i)
-            c2r = ip.IPv4Network("3.%d.3.0/24" % i)
-            s2r = ip.IPv4Network("4.%d.3.0/24" % i)
-            hosts()
 
-            client.setIP('3.3.3.1', 24, '%s-eth0' % client.name)
-            server.setIP()
+        # gateway to server network
+        gw2s = ip.IPv4Network("3.3.3.0/24")
+        # host4.network /netmask/numaddresses
+        # prefix = 24
+        for i in range(2):
+
+            # router between client and server
+            r = self.getName(i)
+
+            c2r = ip.IPv4Network("%d.0.0.0/%d" % (i, 24))
+            s2r = ip.IPv4Network("%d.1.0.0/%d" % (i, 24))
+
+            client.setIP(c2r[1], c2r.max_prefixlen, '%s-eth%d' % (client.name, i))
+            server.setIP(s2r[1], s2r.max_prefixlen, '%s-eth%d' % (server.name, i))
+
+            r.setIP(c2r[2], c2r.max_prefixlen, '%s-eth0' % r.name)
+            r.setIP(s2r[2], s2r.max_prefixlen, '%s-eth0' % r.name)
+            r.cmd('sysctl -w net.ipv4.ip_forward=1')
+
 
     def hook(self, network):
-
         client = network.get("client")
         server = network.get("server")
-        r1 = network.get(self.getName(0))
-        r2 = network.get(self.getName(1))
-        gw = network.get("gateway")
-        print("client.name=", client.name)
+        self.network_generator(client, server)
+    #     # ideally we could let NetworkManager handle this
+    #     runHookOnInterfaces(client)
+    #     runHookOnInterfaces(server)
+    #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
+    #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
+
+    # def hook(self, network):
+    #     # old hook with a gateway in between: TODO reestablish
+
+    #     client = network.get("client")
+    #     server = network.get("server")
+    #     r1 = network.get(self.getName(0))
+    #     r2 = network.get(self.getName(1))
+    #     gw = network.get("gateway")
+    #     print("client.name=", client.name)
 
 
-        r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
-        r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
+    #     r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
+    #     r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
 
-        r2.setIP('4.4.4.1', 24, '%s-eth0' % r2.name)
-        r2.setIP('6.6.6.1', 24, '%s-eth1' % r2.name)
+    #     r2.setIP('4.4.4.1', 24, '%s-eth0' % r2.name)
+    #     r2.setIP('6.6.6.1', 24, '%s-eth1' % r2.name)
 
-        gw.setIP('5.5.5.2', 24, '%s-eth0' % gw.name)
-        gw.setIP('6.6.6.2', 24, '%s-eth1' % gw.name)
-        gw.setIP('7.7.7.1', 24, '%s-eth2' % gw.name)
+    #     gw.setIP('5.5.5.2', 24, '%s-eth0' % gw.name)
+    #     gw.setIP('6.6.6.2', 24, '%s-eth1' % gw.name)
+    #     gw.setIP('7.7.7.1', 24, '%s-eth2' % gw.name)
 
-        server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
-        server.cmd("ip route add default via %s" % "7.7.7.1")
+    #     server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
+    #     server.cmd("ip route add default via %s" % "7.7.7.1")
 
-        # Isn't that handled 
-        # client.cmd('ip rule add from 3.3.3.3 table 1')
-        # client.cmd('ip rule add from 4.4.4.4 table 2')
-        # client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
-        # client.cmd('ip route add default from 3.3.3.3 via 3.3.3.1 dev %s-eth0 table 1' % client.name)
-        # client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
-        # client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
-        # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
+    #     # Isn't that handled 
+    #     # client.cmd('ip rule add from 3.3.3.3 table 1')
+    #     # client.cmd('ip rule add from 4.4.4.4 table 2')
+    #     # client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
+    #     # client.cmd('ip route add default from 3.3.3.3 via 3.3.3.1 dev %s-eth0 table 1' % client.name)
+    #     # client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
+    #     # client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
+    #     # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
 
 
-        # should already be shared
-        r1.cmd('sysctl -w net.ipv4.ip_forward=1')
-        r2.cmd('sysctl -w net.ipv4.ip_forward=1')
-        gw.cmd('sysctl -w net.ipv4.ip_forward=1')
+    #     # should already be shared
+    #     r1.cmd('sysctl -w net.ipv4.ip_forward=1')
+    #     r2.cmd('sysctl -w net.ipv4.ip_forward=1')
+    #     gw.cmd('sysctl -w net.ipv4.ip_forward=1')
 
-        gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
-        gw.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % gw.name)
+    #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
+    #     gw.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % gw.name)
 
-        r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
-        r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
-        r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+    #     r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+    #     r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
+    #     r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
 
-        r2.cmd('ip route add 7.7.7.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
-        r2.cmd('ip route add 3.3.3.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
-        r2.cmd('ip route add 5.5.5.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
+    #     r2.cmd('ip route add 7.7.7.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
+    #     r2.cmd('ip route add 3.3.3.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
+    #     r2.cmd('ip route add 5.5.5.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
 
-        client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
-        client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
+    #     client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
+    #     client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
 
-        # ideally we could let NetworkManager handle this
-        runHookOnInterfaces(client)
-        runHookOnInterfaces(server)
-        client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
-        client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
+    #     # ideally we could let NetworkManager handle this
+    #     runHookOnInterfaces(client)
+    #     runHookOnInterfaces(server)
+    #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
+    #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
         # gw.cmdPrint('ip route add default scope global via 5.5.5.1 dev %s-eth0' % gw.name)
 
 def attach_filter(node):

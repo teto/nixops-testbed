@@ -1,6 +1,6 @@
 # inspired by https://nixos.org/nix/manual/#sec-nix-shell
 with import <nixpkgs> {
-  overlays = [ (import ./neovim.nix) ];
+  # overlays = [ (import ./neovim.nix) ];
 };
 
 
