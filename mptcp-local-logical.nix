@@ -135,10 +135,8 @@ let
       ethtool # to check for segmentation offload
       tmux   # to have it survive ssh closing, nohup can help too
       iperf
-      iperf2
       netperf
       ncdu
-      tshark
     ];
 
     # TODO here we can set a custom initramfs/kernel

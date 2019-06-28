@@ -75,7 +75,7 @@ let
 
     # find some ways to move it to networking.mptcp
     # c ca qui foire
-    iproute_mptcp94
+    iproute_mptcp
   ]
   # enable if we use bcc, or just mount it !
   # ++ lib.optionals false [
