@@ -44,7 +44,7 @@ from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 from mininet.util import pmonitor
 from mininet.clean import cleanup as net_cleanup
-from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
+from mininet.util import (quietRun, errRun, errFail, moveIntf, isShellBuiltin,
                            numCores, retry, mountCgroups )
 
 import ipaddress as ip
@@ -400,18 +400,17 @@ class Test(object):
         pass
 
 
-
-
 class IperfTest(Test):
     """
     """
+
     def __init__(self, *args, **kwargs):
         """
         """
         super().__init__("Iperf", *args, **kwargs)
         self.description = "iperf test"
 
-    def setup(self, net, **kwargs ):
+    def setup(self, net, **kwargs):
         print("iperf setup")
         check_reinject = True
         client = net.get('client')
@@ -467,7 +466,6 @@ class IperfTest(Test):
         for run in range(kwargs.get("runs", 1)):
             self.run_xp(client, run, **kwargs)
 
-
     def run_xp(self, client, run, **kwargs):
         # in iperf3, the client sends the data so...
         # self.start_iperf_client(client,  )
@@ -515,15 +513,15 @@ class IperfWithLostLinks(IperfTest):
         # TODO after some time cut some link
         # in seconds
         time.sleep(1)
-        client.set_mptcp_behavior("" , "off")
-        # 
+        client.set_mptcp_behavior("", "off")
         # TODO cut the link off than reput it to on
 
 
 class TlpTest(Test):
     """ Reproduce tail loss probe test"""
+
     def __init__(self, *args, **kwargs):
-        super().__init__("Tlp",  *args, **kwargs)
+        super().__init__("Tlp", *args, **kwargs)
 
     # Tail loss probe
     # def init(self, *args):
@@ -537,12 +535,9 @@ class TlpTest(Test):
 
         attach_filter(gateway)
 
-
     # def runExperiments(self, net, **kwargs):
     #     for run in range(args.get("runs", 1)):
     #         test.run_xp(net, run, **args)
-
-
 
 
 # class ReinjectionTest(Test):
@@ -620,6 +615,7 @@ class DackTest(Test):
 
         runs = kwargs.get("runs", 1)
         # logging.info("Starting %d runs" % runs)
+
         def _runXPs(aggr_dupack):
             # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
             print("Starting %d runs" % runs)
@@ -628,19 +624,16 @@ class DackTest(Test):
 
                 writer.writerow([int(aggr_dupack), elapsed_ms])
 
-
         import csv
         with open(self._out('dl_times', '.csv'), 'wb') as csvfile:
             writer = csv.writer(csvfile,
-                    # delimiter=' ',
-                    # quotechar='|', quoting=csv.QUOTE_MINIMAL
+                # delimiter=' ',
+                # quotechar='|', quoting=csv.QUOTE_MINIMAL
             )
 
             writer.writerow(["aggr", "delay"])
             _runXPs(1)
             _runXPs(0)
-
-
 
     def run_xp(self, net, run, client, fileToDownload, **kwargs):
         """
@@ -664,7 +657,8 @@ class DackTest(Test):
         out = client.cmdPrint(cmd)
         print(out)
         # import re
-        # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
+        # elapsed_ms_str = re.sub("tcpdump.*", "", 
+        #  client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
 
         elapsed_ms_str = out[2:].rstrip()   # replace("> ", ""))
         # print("elapsed_ms_str", elapsed_ms_str)
@@ -676,15 +670,13 @@ class DackTest(Test):
         return elapsed_ms
 
 
-
-
 # net = None
 
 available_tests = {
-    "dack":    DackTest,
-    "tlp":     TlpTest,
-    "iperf":   IperfTest,
-    "iperfAlt":   IperfWithLostLinks,
+    "dack": DackTest,
+    "tlp": TlpTest,
+    "iperf": IperfTest,
+    "iperfAlt": IperfWithLostLinks,
     # "reinjection": ReinjectionTest,
 }
 
@@ -704,19 +696,20 @@ class StaticTopo(Topo):
     Simple topo with 2 hosts and 'number_of_paths' paths
 
     # server --g----- s1 ----------- client
-    #          \________ s2 ____________/
+    #          \\________ s2 ____________/
 
 
                      r1
                   /      \
            client         gateway  ---  server
-                  \      /
+                 \\      /
                      r2
 
          we use routers instead of switches to avoid OVS-related problems
 
     """
-    def build(self, topo, number_of_paths = 2, loss = 0):
+
+    def build(self, topo, number_of_paths=2, loss=0):
 
         global args
 
@@ -726,7 +719,6 @@ class StaticTopo(Topo):
         server = self.addHost('server')
         # gateway = self.addHost('gateway')
         gateway = self.addHost('gateway')
-
 
         # everything should go through this switch
         # since we need to cancel only the first paquet
@@ -749,7 +741,6 @@ class StaticTopo(Topo):
             link = self.addLink(s, gateway, loss=0, )
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
 
-
         # dans frite, il l'ajoute en dernier
         link2 = self.addLink(server, gateway, )
         print("just for testing, link type = ", type(link2))
@@ -763,15 +754,14 @@ class StaticTopo(Topo):
         intf: interface name
         """
 
-        assert status in [ "on", "off", "backup" ]
+        assert status in ["on", "off", "backup"]
         # ip link set dev eth0 multipath backup
         msg = "ip link set dev %s multipath %s" % (intf, status)
         subprocess.check_call(msg)
 
-
     def network_generator(self, client, server):
         """
-        Generates 
+        Generates
         TODO extend later with
         """
 
@@ -794,7 +784,6 @@ class StaticTopo(Topo):
             r.setIP(s2r[2], s2r.max_prefixlen, '%s-eth0' % r.name)
             r.cmd('sysctl -w net.ipv4.ip_forward=1')
 
-
     def hook(self, network):
         client = network.get("client")
         server = network.get("server")
@@ -815,7 +804,6 @@ class StaticTopo(Topo):
     #     gw = network.get("gateway")
     #     print("client.name=", client.name)
 
-
     #     r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
     #     r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
 
@@ -829,7 +817,7 @@ class StaticTopo(Topo):
     #     server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
     #     server.cmd("ip route add default via %s" % "7.7.7.1")
 
-    #     # Isn't that handled 
+    #     # Isn't that handled
     #     # client.cmd('ip rule add from 3.3.3.3 table 1')
     #     # client.cmd('ip rule add from 4.4.4.4 table 2')
     #     # client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
@@ -837,8 +825,6 @@ class StaticTopo(Topo):
     #     # client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
     #     # client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
     #     # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
-
-
 
     #     # should already be shared
     #     r1.cmd('sysctl -w net.ipv4.ip_forward=1')
@@ -876,7 +862,7 @@ def attach_filter(node):
 
     node.cmd("tc qdisc del dev %s clsact" % ifname)
 
-    node.cmd("tc qdisc add dev %s clsact" % ifname )
+    node.cmd("tc qdisc add dev %s clsact" % ifname)
     node.cmd("rm bpf_fifo; mkfifo bpf_fifo")
     # this is when
     node.cmd("rm /tmp/bpf")
@@ -884,8 +870,8 @@ def attach_filter(node):
 
     node.cmd('tc qdisc add dev %s clsact' % ifname)
     cmd = "tc filter add dev {ifname} ingress bpf obj {bytecode} section action direct-action".format(
-            ifname=ifname,
-            bytecode=EBPF_DROPPER_BYTECODE)
+        ifname=ifname,
+        bytecode=EBPF_DROPPER_BYTECODE)
 
     # to see the filters you have to run
     # tc filter show dev gateway-eth2 ingress
@@ -906,14 +892,13 @@ class MptcpHost(mininet.net.Host):
     """
     mounts debugfs so that bcc works
     """
+
     def __init__(self, name, **kwargs):
 
         super(MptcpHost, self).__init__(name, **kwargs)
         res = self.cmd("mount -t debugfs none /sys/kernel/debug")
         res = self.cmd("mount -t bpf none /sys/fs/bpf/")
         print("HOST: res", res)
-
-
 
 
 if __name__ == '__main__':
@@ -927,37 +912,37 @@ if __name__ == '__main__':
     # todo move to test
     # parser.add_argument("--file", help="The file to download",)
     parser.add_argument("-n", "--number-of-paths", type=int, default=2,
-        help="The number of subflows")
+                        help="The number of subflows")
     parser.add_argument("-r", "--reinjections", type=bool, default=False,
-        help="Check for reinjections")
+                        help="Check for reinjections")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'],
-        help="Running in debug mode", default='info')
+                        help="Running in debug mode", default='info')
     # shouldn't let the user choose it, it's too dependant on the experiment
     parser.add_argument("-t", "--topo", choices=available_topologies.keys(),
-        help="Topology", default="asymetric")
+                        help="Topology", default="asymetric")
     parser.add_argument("-c", "--capture", action="store_true",
-        help="capture packets", default=False)
+                        help="capture packets", default=False)
     parser.add_argument("-s", "--scheduler", choices=SCHEDULERS,
-        help="Mptcp scheduler", default="default")
+                        help="Mptcp scheduler", default="default")
     parser.add_argument("-p", "--path-manager", choices=["fullmesh", "ndiffports", "netlink"],
-        help="Mptcp path manager", default="fullmesh")
+                        help="Mptcp path manager", default="fullmesh")
     parser.add_argument("-i", "--interactive", action="store_true",
-        help="Waiting in command line interface", default=False)
+                        help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
     # parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
-        # help="Wether to attach our filter")
+    # help="Wether to attach our filter")
     # parser.add_argument("test", choices=list(map(lambda x: x.__name__, available_tests)), action="store",
-        # help="Test to run")
+    # help="Test to run")
 
     subparsers = parser.add_subparsers(dest="test_type", title="Subparsers",
-        help='sub-command help')
+                                       help='sub-command help')
     subparsers.required = True  # type: ignore
 
     for name, test in available_tests.items():
         subparser = subparsers.add_parser(name,  # parents=[pcap_parser],
-            help=test.description)
+                                          help=test.description)
 
         test.init_subparser(subparser)
 
@@ -1028,11 +1013,11 @@ if __name__ == '__main__':
     except Exception as e:
         logging.exception("Exception triggered ")
     finally:
-        test.tearDown() # type: ignore
+        test.tearDown()  # type: ignore
 
         # TODO reestablish
         # disabled in order to check for journald logs in /j
-        # net_cleanup() 
+        # net_cleanup()
 
         print("Moving from %s to %s" % (tempdir, dargs["out"]))
         shutil.move(tempdir, dargs["out"])
@@ -1042,7 +1027,6 @@ if __name__ == '__main__':
     # if args.debug:
     #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
     # else:
-
 
     # if args.number_of_subflows:
     #     number_of_paths = [int(args.number_of_subflows)]
