@@ -36,6 +36,8 @@ import time  # for sleep
 # python > 3.7
 from dataclasses import dataclass, field
 
+import mininet
+
 # from asym_link import AsymTCLink
 from mininet.cli import CLI
 from mininet.topo import Topo
@@ -45,14 +47,13 @@ from mininet.log import setLogLevel, info
 from mininet.util import pmonitor
 from mininet.clean import cleanup as net_cleanup
 from mininet.util import (quietRun, errRun, errFail, moveIntf, isShellBuiltin,
-                           numCores, retry, mountCgroups )
+                          numCores, retry, mountCgroups)
 
 import ipaddress as ip
 # ipaddress.IPv4Network
 # list(ip_network('192.0.2.0/29').hosts())
 #
 from builtins import super
-import mininet
 import functools
 import logging
 
@@ -83,9 +84,9 @@ log.addHandler(ch)
 # try:
 
 # todo make it so that we just have to unpack the parameter
- # -n, --bytes n[KM]
+# -n, --bytes n[KM]
 # TODO remove
-net  = None
+net = None
 
 
 SERVER_NAME = 'server'
@@ -95,58 +96,57 @@ GW_NAME = 'gateway'
 dataAmount = "1M"
 
 # set to none for a random stream
-FILE_TO_TRANSFER="test_file"
-EBPF_DROPPER_BYTECODE="ebpf_dropper.o"
+FILE_TO_TRANSFER = "test_file"
+EBPF_DROPPER_BYTECODE = "ebpf_dropper.o"
 
 # is there a way to autodiscover ?
-SCHEDULERS = ["default", "redundant", "roundrobin", "prevenant", "ecf" ]
+SCHEDULERS = ["default", "redundant", "roundrobin", "prevenant", "ecf"]
 # can get parameters from
 
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
-    { 'bw': 1, 'delay': "150ms", "loss": 1},
+    {'bw': 1, 'delay': "150ms", "loss": 1},
     # fast wifi
-    { 'bw': 4, 'delay': "20ms", "loss": 20},
+    {'bw': 4, 'delay': "20ms", "loss": 20},
 ]
 
-forward={ 'delay': "10ms", "loss": 10}
-backward={ 'delay': "50ms"}
+forward = {'delay': "10ms", "loss": 10}
+backward = {'delay': "50ms"}
 
 topoAsymetric = [
     # loss is in percoutage
     # 'delay': "20ms",
-    { 'bw': 2, "max_queue_size":1000, "use_htb": True,
+    {'bw': 2, "max_queue_size": 1000, "use_htb": True,
         'params1': forward, 'params2': backward
-    },
+     },
     # { 'bw': 2, 'delay': "20ms", "loss": 20},
-    { 'bw': 2, 'delay': "20ms", "loss": 0},
+    {'bw': 2, 'delay': "20ms", "loss": 0},
 ]
 
 topoSymetric = [
-    { 'bw': 1, 'delay': "20ms", "loss": 0},
-    { 'bw': 1, 'delay': "20ms", "loss": 0},
+    {'bw': 1, 'delay': "20ms", "loss": 0},
+    {'bw': 1, 'delay': "20ms", "loss": 0},
 ]
 
 # jitter is for example " '5ms"
 # update returns None which is BAD
 # topoSymetricJitter = list(map(lambda x : x.update(jitter='5ms'), topoSymetric))
 topoSymetricJitter = [
-    { 'bw': 1, 'delay': "20ms", "loss": 0, "jitter":'5ms'},
-    { 'bw': 1, 'delay': "20ms", "loss": 0, "jitter":'5ms'},
+    {'bw': 1, 'delay': "20ms", "loss": 0, "jitter": '5ms'},
+    {'bw': 1, 'delay': "20ms", "loss": 0, "jitter": '5ms'},
 ]
 
 
 topoDack = [
-    { 'bw': 1, 'delay': "10ms", "loss": 10},
-    { 'bw': 1, 'delay': "20ms", "loss": 0},
+    {'bw': 1, 'delay': "10ms", "loss": 10},
+    {'bw': 1, 'delay': "20ms", "loss": 0},
 ]
 
 
-
 topoSinglePath = [
-    { 'bw': 2,  "loss": 0,
+    {'bw': 2, "loss": 0,
         'params1': forward, 'params2': backward,
-    },
+     },
 ]
 
 # topo = topoSinglePath
@@ -167,8 +167,8 @@ available_topologies = {
     "singlePath": topoSinglePath,
     "wirelessHetero": topoWireLessHetero,
     "symetric": topoSymetric,
-    "asymetric":  topoAsymetric,
-    "dack":  topoDack,
+    "asymetric": topoAsymetric,
+    "dack": topoDack,
     "3paths_symetric_jitter": topoSymetricJitter,
 }
 
@@ -181,22 +181,21 @@ def run_sysctl(key, value, **popenargs):
     subprocess.check_call(["sysctl -w %s='%s'" % (key, value)], shell=True)
 
 
-
 # Problem we wanna solve here:
 # class MPTCPIntf(Intf):
 #     def setIP(self, *args, **kwargs):
 #         pass
 #     def runHook()
-#         pass 
+#         pass
     # updateIP
     # updateAddr
 
-def runHookOnInterface (intf, gateway, hook_filename="/home/teto/testbed/mptcp_up.sh"):
+def runHookOnInterface(intf, gateway, hook_filename="/home/teto/testbed/mptcp_up.sh"):
     """
     call a script to setup mptcp on a specific interface
     """
     # or pexec ?
-    # seems like we can't pass a custom environment with 
+    # seems like we can't pass a custom environment with
     log.info("building MPTCP routing table for intf %s" % intf.name)
 
     #
@@ -228,16 +227,17 @@ def runHookOnInterface (intf, gateway, hook_filename="/home/teto/testbed/mptcp_u
 # TODO look into
 class Test(object):
     description = "default description"
+
     def __init__(self,
-            name,
-            # sysctl values
-            aggr_dupack=0, aggr_rto=0,
-            mptcp_scheduler=None,
-            # mptcp_path_manager="fullmesh",
-            tcp_timestamps=1,
-            net=None,
-            **kwargs
-        ):
+                 name,
+                 # sysctl values
+                 aggr_dupack=0, aggr_rto=0,
+                 mptcp_scheduler=None,
+                 # mptcp_path_manager="fullmesh",
+                 tcp_timestamps=1,
+                 net=None,
+                 **kwargs
+                 ):
         self.name = name
         assert net
         self.net = net
@@ -259,8 +259,7 @@ class Test(object):
         # os.system('sysctl -w net.mptcp.mptcp_debug=0')
         # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
-
-        assert tcp_timestamps == None or tcp_timestamps < 5
+        assert tcp_timestamps is None or tcp_timestamps < 5
         if tcp_timestamps is not None:
             run_sysctl('net.ipv4.tcp_timestamps', tcp_timestamps)
         # self.init(**kwargs)
@@ -284,11 +283,9 @@ class Test(object):
             # print(err)
             sys.exit(1)
 
-
     def start_tcpdump(self, node, **kwargs):
-        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
+        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng")]
         self.start_daemon(node, cmd)
-
 
     def start_tshark(self, node, **kwargs):
         # nohup tshark -i any -n -w out/server.pcap -f "tcp port 5201" 2>1 &
@@ -304,7 +301,7 @@ class Test(object):
         # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
         pcap_filename = self._out("%s" % node, number_of_paths, ".pcapng")
         # pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
-        cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename ]
+        cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename]
         # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
         # node.cmd(cmd)
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
@@ -330,8 +327,8 @@ class Test(object):
         # number_of_paths,
         print("name = %r" % self.name)
         cmd = "iperf3 -s --json --logfile={logfile}".format(
-                logfile=self._out("server_iperf", self.name, ".log")
-            )
+            logfile=self._out("server_iperf", self.name, ".log")
+        )
 
         # just as a security
         node.cmd("pkill -9 iperf")
@@ -363,7 +360,6 @@ class Test(object):
 
             print("RESULT %r" % (res))
 
-
         if kwargs.get("capture"):
             print("Capturing packets...")
             print('tshark -r out/client_2.pcap -z "conv,mptcp"')
@@ -376,7 +372,7 @@ class Test(object):
     def _out(self, *args):
         """ Use it to name files"""
         suffix = '_'.join(map(str, args))
-        return os.path.join(self._out_folder, suffix )
+        return os.path.join(self._out_folder, suffix)
 
     def tearDown(self):
         logging.info("Tearing down")
@@ -594,9 +590,9 @@ class DackTest(Test):
     @staticmethod
     def init_subparser(parser):
         parser.add_argument("fileToDownload", action="store",
-            type=str, default=FILE_TO_TRANSFER, help="filename to download")
+                            type=str, default=FILE_TO_TRANSFER, help="filename to download")
         parser.add_argument("--reordering", action="store", type=int, default=3,
-            help="number of dupack to consider a fast retransmit")
+                            help="number of dupack to consider a fast retransmit")
         return parser
 
     def setup(self, net, **kwargs):
@@ -627,9 +623,9 @@ class DackTest(Test):
         import csv
         with open(self._out('dl_times', '.csv'), 'wb') as csvfile:
             writer = csv.writer(csvfile,
-                # delimiter=' ',
-                # quotechar='|', quoting=csv.QUOTE_MINIMAL
-            )
+                                # delimiter=' ',
+                                # quotechar='|', quoting=csv.QUOTE_MINIMAL
+                                )
 
             writer.writerow(["aggr", "delay"])
             _runXPs(1)
@@ -657,8 +653,9 @@ class DackTest(Test):
         out = client.cmdPrint(cmd)
         print(out)
         # import re
-        # elapsed_ms_str = re.sub("tcpdump.*", "", 
-        #  client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" % (topo.server_addr, filename)).replace("> ", ""))
+        # elapsed_ms_str = re.sub("tcpdump.*", "",
+        # client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" %
+        # (topo.server_addr, filename)).replace("> ", ""))
 
         elapsed_ms_str = out[2:].rstrip()   # replace("> ", ""))
         # print("elapsed_ms_str", elapsed_ms_str)
@@ -726,7 +723,8 @@ class StaticTopo(Topo):
         # only one link between the 2
         # https://github.com/mininet/mininet/issues/823
 
-        # for r, cmd in [(self.r3, 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
+        # for r, cmd in [ (self.r3,
+        # 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         # defaults to 0
         for i, params in enumerate(topo):
             name = self.getName(i)
@@ -945,7 +943,6 @@ if __name__ == '__main__':
                                           help=test.description)
 
         test.init_subparser(subparser)
-
 
     global args
     args, unknown_args = parser.parse_known_args()

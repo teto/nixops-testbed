@@ -5,8 +5,8 @@
 let
   tpl = { config, pkgs, lib,  ... }:
   let
-    # myKernel = pkgs.linux_mptcp_trunk_raw;
-    myKernel = pkgs.linux_mptcp;
+    myKernel = pkgs.linux_mptcp_trunk_raw;
+    # myKernel = pkgs.linux_mptcp;
     dotfiles = /home/teto/dotfiles;
     myOverlay = dotfiles + /config/nixpkgs/overlays/kernels.nix;
   in
@@ -85,6 +85,9 @@ let
   ;
 
   boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
+
+  # for use in libvirt
+  boot.initrd.availableKernelModules = [ "ext4" ];
 
   nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ];
 

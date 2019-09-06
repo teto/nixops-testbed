@@ -23,11 +23,12 @@
 
       # TODO keep for later
       #  boot.consoleLogLevel=1
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 raid=noautodetect nokaslr tcp_probe.port=5201 tcp_probe.full=1";
+      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 raid=noautodetect nokaslr";
       # # # x86_64 is a symlink towards x86
       # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
       kernel="/home/teto/bzImage";
 
+      # added in https://github.com/NixOS/nixops/pull/922
       storagePool = "ext";
 
       # this is the default
@@ -141,8 +142,7 @@
     fileSystems."/home/teto/mptcp-pm" = {
       device = "netlink";
       fsType = "9p";
-      # make it readonly
-      options = options9p ++ [ "ro"];
+      options = options9p;
     };
 
     fileSystems."/home/teto/mininet" = {

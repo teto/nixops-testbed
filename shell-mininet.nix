@@ -1,4 +1,7 @@
 # inspired by https://nixos.org/nix/manual/#sec-nix-shell
+{
+  host ? false
+}:
 with import <nixpkgs> {
   # overlays = [ (import ./neovim.nix) ];
 };
@@ -22,6 +25,10 @@ let
     extraPython3Packages = python3PackagesFun;
   };
 
+  nvimPyEnv = my_nvim.config.python3Env;
+
+  standalonePyEnv = python3.withPackages(python3PackagesFun);
+
   # wrapNeovim neovim-unwrapped
   # my_nvim = wrapNeovim neovim-unwrapped (
   #   lib.mkMerge [
@@ -34,15 +41,18 @@ let
 
 in
   mkShell {
-    propagatedBuildInputs = [
+    name = "shell-for-mntest.py";
+    propagatedBuildInputs = let
+        pyEnv = (if host == true then nvimPyEnv else standalonePyEnv);
+      in [
       iperf3
-      my_nvim.config.python3Env
+      pyEnv
     ];
 
     # echo "${builtins.toString nvimConfig.python3Env}"
+    # echo "${my_nvim}"
     shellHook = ''
      export PATH="${my_nvim}/bin:$PATH"
      echo "toto"
-      echo "${my_nvim}"
     '';
   }
