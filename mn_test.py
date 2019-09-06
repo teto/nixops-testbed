@@ -178,7 +178,7 @@ available_topologies = {
 def run_sysctl(key, value, **popenargs):
     # todo parse output of check_output instead
     # subprocess.check_call(["sysctl","-w","%s=%s" % (key, value)], shell=True)
-    subprocess.check_call(["sysctl -w %s='%s'" % (key, value)], shell=True)
+    subprocess.check_call([f"sysctl -w {key}='{value}'"], shell=True)
 
 
 # Problem we wanna solve here:
@@ -267,6 +267,24 @@ class Test(object):
     @staticmethod
     def init_subparser(parser):
         return parser
+
+
+    def start_nemphis(self, node, cmd, **kwargs):
+        '''
+        start the NEtlink MPtcp HAskell daemon
+        '''
+        # daemon $@
+        # cabal run daemon daemon $@
+        # cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
+        # cmd = ["nix-build", "./default.nix"]
+        subprocess.check_call(cmd, cwd="")
+
+        cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
+        # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
+        # node.cmd(cmd)
+        # nix-build
+        # daemon daemon 202.214.86.51
+        self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
     # https://github.com/mininet/mininet/issues/857
     def start_daemon(self, node, cmd, **kwargs):
@@ -677,13 +695,18 @@ available_tests = {
     # "reinjection": ReinjectionTest,
 }
 
+
+def cleanup():
+    net_cleanup()
+    # TODO kill tshark/haskell daemons
+
 # clean sthg
 def sigint_handler(signum, frame):
     print('Stop pressing the CTRL+C!')
     # global net
     # net.stop()
 
-    net_cleanup()
+    cleanup()
     sys.exit(3)
 
 # signal.signal(signal.SIGINT, sigint_handler)
@@ -765,21 +788,23 @@ class StaticTopo(Topo):
 
         # gateway to server network
         gw2s = ip.IPv4Network("3.3.3.0/24")
+        print("netmask length ", prefixlen)
         # host4.network /netmask/numaddresses
         # prefix = 24
         for i in range(2):
 
             # router between client and server
-            r = self.getName(i)
+            r = self.getNode(i)
 
+            # todo use g
             c2r = ip.IPv4Network("%d.0.0.0/%d" % (i, 24))
             s2r = ip.IPv4Network("%d.1.0.0/%d" % (i, 24))
 
-            client.setIP(c2r[1], c2r.max_prefixlen, '%s-eth%d' % (client.name, i))
-            server.setIP(s2r[1], s2r.max_prefixlen, '%s-eth%d' % (server.name, i))
+            client.setIP(str(c2r[1]), c2r.max_prefixlen, '%s-eth%d' % (client.name, i))
+            server.setIP(str(s2r[1]), s2r.max_prefixlen, '%s-eth%d' % (server.name, i))
 
-            r.setIP(c2r[2], c2r.max_prefixlen, '%s-eth0' % r.name)
-            r.setIP(s2r[2], s2r.max_prefixlen, '%s-eth0' % r.name)
+            r.setIP(str(c2r[2]), c2r.max_prefixlen, f"{r.name}-eth0")
+            r.setIP(str(s2r[2]), s2r.max_prefixlen, f"{r.name}-eth0")
             r.cmd('sysctl -w net.ipv4.ip_forward=1')
 
     def hook(self, network):

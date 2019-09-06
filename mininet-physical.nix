@@ -7,14 +7,13 @@
   # for how to setup shared folders
   main = { config, pkgs, ... }:
     let
-      # TODO 
       # "posixacl"
       # version=9p2000.L must be one of the recent versions
       # how to access logs of "debug=0x04"
+      # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
       options9p = [ "defaults" "nofail" "access=any" "trans=virtio" "version=9p2000.L" ];
-      # make it very slow
-# ++ [ "debug=0x05" ]
-    in 
+      # make it very slow : ++ [ "debug=0x05" ]
+    in
     {
     deployment.targetEnv = "libvirtd";
     deployment.libvirtd = {
@@ -124,13 +123,11 @@
     fileSystems."/home/teto/testbed" = {
       device = "mn";
       fsType = "9p";
-      # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
       options = options9p ;
     };
     fileSystems."/home/teto/mptcp" = {
       device = "mptcp";
       fsType = "9p";
-      # https://www.kernel.org/doc/Documentation/filesystems/9p.txt
       options = options9p ;
     };
     # fileSystems."/home/teto/frite" = {

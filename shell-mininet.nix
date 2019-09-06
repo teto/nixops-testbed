@@ -20,6 +20,9 @@ let
       # future
   ];
 
+
+  haskellDaemon = import ../mptcp-pm;
+
   my_nvim = genNeovim  [ ] {
     withHaskell = false;
     extraPython3Packages = python3PackagesFun;
@@ -47,12 +50,13 @@ in
       in [
       iperf3
       pyEnv
+      haskellDaemon
     ];
 
     # echo "${builtins.toString nvimConfig.python3Env}"
     # echo "${my_nvim}"
+    # export PATH="${my_nvim}/bin:$PATH"
     shellHook = ''
-     export PATH="${my_nvim}/bin:$PATH"
      echo "toto"
     '';
   }
