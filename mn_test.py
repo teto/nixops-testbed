@@ -32,6 +32,7 @@ import tempfile
 import shutil
 import time  # for sleep
 # from progmp import ProgMP
+import copy
 
 # python > 3.7
 from dataclasses import dataclass, field
@@ -56,6 +57,7 @@ import ipaddress as ip
 from builtins import super
 import functools
 import logging
+# import mn_mptcp
 
 
 log = logging.getLogger(__name__)
@@ -88,6 +90,8 @@ log.addHandler(ch)
 # TODO remove
 net = None
 
+# https://stackoverflow.com/questions/46537736/mininet-cant-ping-across-2-routers
+# class LinuxRouter():
 
 SERVER_NAME = 'server'
 CLIENT_NAME = 'client'
@@ -190,27 +194,31 @@ def run_sysctl(key, value, **popenargs):
     # updateIP
     # updateAddr
 
-def runHookOnInterface(intf, gateway, hook_filename="/home/teto/testbed/mptcp_up.sh"):
+
+# TODO should go in a custom interface
+def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
     """
     call a script to setup mptcp on a specific interface
     """
     # or pexec ?
     # seems like we can't pass a custom environment with
-    log.info("building MPTCP routing table for intf %s" % intf.name)
+    log.info("building MPTCP routing table for intf %s", intf.name)
 
     #
     # gw = intf.link.node1 if intf.link.node2 == node else intf.link.node1
-    env = os.environ
+    env = copy.copy(os.environ)
     env.update({
         "DEVICE_IFACE": intf.name,
         # "DHCP4_IP_ADDRESS": intf.IP(),
         "IP4_ADDRESS_0": intf.IP(),
         "DEVICE_IP_IFACE": intf.name,
-        # (replace last number)
-        "IP4_GATEWAY": gateway
     })
+    # only if needed
+    # # (replace last number)
+    # "IP4_GATEWAY": gateway
     cmd = "sh {} {action} {status}".format(hook_filename, action="fake", status="up")
-    out, err, ret = node.pexec(cmd, env=env)
+    # intf.cmd
+    out, err, ret = intf.node.pexec(cmd, env=env)
     assert ret == 0, err
     print(out)
 
@@ -221,7 +229,9 @@ def runHookOnInterface(intf, gateway, hook_filename="/home/teto/testbed/mptcp_up
 #     # https://mail.gnome.org/archives/networkmanager-list/2016-April/msg00083.html
 #     # https://mail.gnome.org/archives/networkmanager-list/2015-October/msg00020.html
 #     for intf in node.intfList():
-#         runHookOnInterface( )
+#         runMptcpHookOnInterface( )
+
+# class MptcpNode(Node):
 
 
 # TODO look into
@@ -791,6 +801,7 @@ class StaticTopo(Topo):
         Generates
         TODO extend later with
         rename into left/right
+        todo use getinterface ip a la place
         """
 
         gateway = network.get('gateway')
@@ -814,7 +825,7 @@ class StaticTopo(Topo):
             # todo use g
             left2router = ip.IPv4Network("10.%d.0.0/24" % (i, ))
             # gateway2router in fact
-            right2router = ip.IPv4Network("11.%d.0.0/24" % (i, ))
+            right2router = ip.IPv4Network("10.%d.1.0/24" % (i, ))
 
             #
             print("client intf names", client.intfNames())
@@ -823,12 +834,18 @@ class StaticTopo(Topo):
             # print("ip 1", str(left2router[1]))
 
             print("left2router.prefixlen=%d" % left2router.prefixlen)
-            leftNode.setIP(str(left2router[1]), left2router.prefixlen, '%s-eth%d' % (leftNode.name, i))
+            leftNode.setIP(str(left2router[1]), 16, '%s-eth%d' % (leftNode.name, i))
             r.setIP(str(left2router[2]), left2router.prefixlen, f"{r.name}-eth0")
             r.setIP(str(right2router[2]), right2router.prefixlen, f"{r.name}-eth1")
-            rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
+            # here we use a mask that covers networks from the gateay till the leftNode
+            # (including the router ) right2router.prefixlen,
+            rightNode.setIP(str(right2router[1]), 16, '%s-eth%d' % (rightNode.name, i))
+
+            # by default route to the rightmost node
+            r.cmd("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
 
             r.cmd('sysctl -w net.ipv4.ip_forward=1')
+            rightNode.cmd('sysctl -w net.ipv4.ip_forward=1')
 
         # str(right2router[2])
         gwNbIntfs = len(rightNode.intfs)
@@ -837,7 +854,17 @@ class StaticTopo(Topo):
         server.setIP(str(gw2s[2]), gw2s.prefixlen, f"{server.name}-eth0")
 
         # rightNode.cmd(f"ip route add {gw2s} via {gw2s[1]} dev {rightNode.name}-eth0")
+        # %s" % str(gw2s[2]))
+        server.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (str(gw2s[1]), f"{server.name}-eth0"))
         # server.cmd("ip route add default via %s" % str(gw2s[2]))
+        # Make sure that the client ha mptcp configured correctly
+
+        # hook_filename = "/home/teto/nixpkgs2/nixos/modules/services/networking/mptcp/mptcp_up_raw"
+        hook_filename = "mptcp_up_raw"
+        # "mptcp_up.sh"
+        client.runMptcpHookOnEveryInterface(hook_filename=hook_filename)
+        # client also needs a route towards the server
+        # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
     def hook(self, network):
         client = network.get("client")
@@ -846,8 +873,8 @@ class StaticTopo(Topo):
 
     #     # ideally we could let NetworkManager handle this
     #       juist loop through the nodes, see which ones are multihomed and trigger them
-    #     runHookOnInterfaces(client)
-    #     runHookOnInterfaces(server)
+    #     runMptcpHookOnInterfaces(client)
+    #     runMptcpHookOnInterfaces(server)
     #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
     #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
@@ -903,8 +930,8 @@ class StaticTopo(Topo):
     #     client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
 
     #     # ideally we could let NetworkManager handle this
-    #     runHookOnInterfaces(client)
-    #     runHookOnInterfaces(server)
+    #     runMptcpHookOnInterfaces(client)
+    #     runMptcpHookOnInterfaces(server)
     #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
     #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
         # gw.cmdPrint('ip route add default scope global via 5.5.5.1 dev %s-eth0' % gw.name)
@@ -945,6 +972,7 @@ def attach_filter(node):
         print(out)
 
 
+# TODO difference between Host and Node ?
 class MptcpHost(mininet.net.Host):
     """
     mounts debugfs so that bcc works
@@ -955,7 +983,13 @@ class MptcpHost(mininet.net.Host):
         super(MptcpHost, self).__init__(name, **kwargs)
         res = self.cmd("mount -t debugfs none /sys/kernel/debug")
         res = self.cmd("mount -t bpf none /sys/fs/bpf/")
-        print("HOST: res", res)
+
+    def runMptcpHookOnEveryInterface(self, hook_filename, gateway=None, ):
+        '''
+        '''
+        # self.cmd("ip route flush all")
+        for intf in self.intfList():
+            runMptcpHookOnInterface(intf, gateway, hook_filename)
 
 
 if __name__ == '__main__':
