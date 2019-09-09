@@ -268,7 +268,6 @@ class Test(object):
     def init_subparser(parser):
         return parser
 
-
     def start_nemphis(self, node, cmd, **kwargs):
         '''
         start the NEtlink MPtcp HAskell daemon
@@ -396,7 +395,6 @@ class Test(object):
         logging.info("Tearing down")
 
         # restore some sysctl values ? like timestamp
-        #
         for proc in self._popens:
 
             print("retcode ", proc.returncode)
@@ -729,15 +727,20 @@ class StaticTopo(Topo):
 
     """
 
-    def build(self, topo, number_of_paths=2, loss=0):
+    def __init__(self, *args, **kwargs):
+        # self.
+        super().__init__(*args, **kwargs)
 
-        global args
+    def build(self, topo, number_of_paths=2, loss=0):
+        '''
+        TODO
+        pass the name of left and right nodes, along with their networks
+        '''
 
         # If you need per-host private directories, you can specify them as options to Host, for example:
         # h = Host( 'h1', privateDirs=[ '/some/directory' ] )
         client = self.addHost('client')
         server = self.addHost('server')
-        # gateway = self.addHost('gateway')
         gateway = self.addHost('gateway')
 
         # everything should go through this switch
@@ -750,23 +753,25 @@ class StaticTopo(Topo):
         # 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         # defaults to 0
         for i, params in enumerate(topo):
-            name = self.getName(i)
-            # print("NAME", name)
-            s = self.addHost(name)
+            routerName = self.getName(i)
+            router = self.addHost(routerName)
 
             # one good fast path
             # params.update({'use_tbf': True,
             #     'max_queue_size': 15000 # 10 paquets
             # })
-            self.addLink(client, s, **params)
-            link = self.addLink(s, gateway, loss=0, )
+            self.addLink(client, router, **params)
+            # loss=0, )
+            link = self.addLink(router, gateway, )
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
 
         # dans frite, il l'ajoute en dernier
+        # port1/port2
         link2 = self.addLink(server, gateway, )
         print("just for testing, link type = ", type(link2))
 
     def getName(self, idx):
+        '''Router name'''
         return 'r' + str(idx + 1)
 
     def set_mptcp_behavior(self, intf: str, status):
@@ -777,47 +782,76 @@ class StaticTopo(Topo):
 
         assert status in ["on", "off", "backup"]
         # ip link set dev eth0 multipath backup
-        msg = "ip link set dev %s multipath %s" % (intf, status)
+        msg = f"ip link set dev {intf} multipath {status}"
+        # % (intf, status)
         subprocess.check_call(msg)
 
-    def network_generator(self, client, server):
+    def network_generator(self, network: Mininet, client, server):
         """
         Generates
         TODO extend later with
+        rename into left/right
         """
+
+        gateway = network.get('gateway')
+
+        leftNode = client
+        rightNode = gateway
 
         # gateway to server network
         gw2s = ip.IPv4Network("3.3.3.0/24")
-        print("netmask length ", prefixlen)
+        print("netmask length ", gw2s.prefixlen)
         # host4.network /netmask/numaddresses
-        # prefix = 24
+        # zip over 2 IPv4Networks
+        # TODO not 2 ! should depend on number of paths
         for i in range(2):
+            print("Setting up for id %d" % i)
 
             # router between client and server
-            r = self.getNode(i)
+            routerName = self.getName(i)
+            r = network.get(routerName)
 
             # todo use g
-            c2r = ip.IPv4Network("%d.0.0.0/%d" % (i, 24))
-            s2r = ip.IPv4Network("%d.1.0.0/%d" % (i, 24))
+            left2router = ip.IPv4Network("10.%d.0.0/24" % (i, ))
+            # gateway2router in fact
+            right2router = ip.IPv4Network("11.%d.0.0/24" % (i, ))
 
-            client.setIP(str(c2r[1]), c2r.max_prefixlen, '%s-eth%d' % (client.name, i))
-            server.setIP(str(s2r[1]), s2r.max_prefixlen, '%s-eth%d' % (server.name, i))
+            #
+            print("client intf names", client.intfNames())
+            print("server intf names", server.intfNames())
+            # print("ip %d" % i, str(left2router[i]))
+            # print("ip 1", str(left2router[1]))
 
-            r.setIP(str(c2r[2]), c2r.max_prefixlen, f"{r.name}-eth0")
-            r.setIP(str(s2r[2]), s2r.max_prefixlen, f"{r.name}-eth0")
+            print("left2router.prefixlen=%d" % left2router.prefixlen)
+            leftNode.setIP(str(left2router[1]), left2router.prefixlen, '%s-eth%d' % (leftNode.name, i))
+            r.setIP(str(left2router[2]), left2router.prefixlen, f"{r.name}-eth0")
+            r.setIP(str(right2router[2]), right2router.prefixlen, f"{r.name}-eth1")
+            rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
+
             r.cmd('sysctl -w net.ipv4.ip_forward=1')
+
+        # str(right2router[2])
+        gwNbIntfs = len(rightNode.intfs)
+        print("Number of gateway interfaces %d" % gwNbIntfs)
+        rightNode.setIP(str(gw2s[1]), gw2s.prefixlen, f"{rightNode.name}-eth%d" % (gwNbIntfs-1))
+        server.setIP(str(gw2s[2]), gw2s.prefixlen, f"{server.name}-eth0")
+
+        # rightNode.cmd(f"ip route add {gw2s} via {gw2s[1]} dev {rightNode.name}-eth0")
+        # server.cmd("ip route add default via %s" % str(gw2s[2]))
 
     def hook(self, network):
         client = network.get("client")
         server = network.get("server")
-        self.network_generator(client, server)
+        self.network_generator(network, client, server)
+
     #     # ideally we could let NetworkManager handle this
+    #       juist loop through the nodes, see which ones are multihomed and trigger them
     #     runHookOnInterfaces(client)
     #     runHookOnInterfaces(server)
     #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
     #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
-    # def hook(self, network):
+    # def hook(self, network): via
     #     # old hook with a gateway in between: TODO reestablish
 
     #     client = network.get("client")
@@ -1002,6 +1036,7 @@ if __name__ == '__main__':
     )
 
     # installs IPs
+    # use build en fait
     my_topo.hook(net)
     net.start()
 
@@ -1018,7 +1053,7 @@ if __name__ == '__main__':
     test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
     # hack
     test._out_folder = tempdir
-    logging.info("Launching test %s" % (args.test_type))
+    logging.info("Launching test %s", args.test_type)
 
     try:
         client = net.get('client')

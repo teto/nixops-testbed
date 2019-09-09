@@ -46,6 +46,10 @@ let
     fi
   '';
 
+
+  #
+  security.sudo.wheelNeedsPassword = false;
+
   networking.firewall.enable = false;
 
 
@@ -75,7 +79,7 @@ let
 
     # find some ways to move it to networking.mptcp
     # c ca qui foire
-    iproute_mptcp
+    # iproute_mptcp
   ]
   # enable if we use bcc, or just mount it !
   # ++ lib.optionals false [
