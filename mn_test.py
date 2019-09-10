@@ -859,7 +859,7 @@ class StaticTopo(Topo):
             rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
 
             rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
-                                % (right2router[2], f"{rightNode.name}-eth{i}"))
+                               % (right2router[2], f"{rightNode.name}-eth{i}"))
             # by default route to the rightmost node
             r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
 
@@ -878,9 +878,6 @@ class StaticTopo(Topo):
         # routerName = self.getName(i)
         # r = network.get(routerName)
         # TODO fix
-        leftNode.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
-                        ("10.0.0.2", f"{leftNode.name}-eth0"))
-
         # rightNode.cmd(f"ip route add {gw2s} via {gw2s[1]} dev {rightNode.name}-eth0")
         # %s" % str(gw2s[2]))
         server.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
@@ -892,6 +889,10 @@ class StaticTopo(Topo):
         hook_filename = "mptcp_up_raw"
         # "mptcp_up.sh"
         client.runMptcpHookOnEveryInterface(hook_filename=hook_filename)
+
+        leftNode.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
+                          ("10.0.0.2", f"{leftNode.name}-eth0"))
+
         # client also needs a route towards the server
         # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
