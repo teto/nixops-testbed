@@ -43,6 +43,7 @@ import mininet
 from mininet.cli import CLI
 from mininet.topo import Topo
 from mininet.net import Mininet
+from mininet.node import Node
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 from mininet.util import pmonitor
@@ -186,6 +187,7 @@ def run_sysctl(key, value, **popenargs):
 
 
 # Problem we wanna solve here:
+# when the interface goes up, it should trigger the hook
 # class MPTCPIntf(Intf):
 #     def setIP(self, *args, **kwargs):
 #         pass
@@ -193,6 +195,18 @@ def run_sysctl(key, value, **popenargs):
 #         pass
     # updateIP
     # updateAddr
+
+class LinuxRouter(Node):
+    "A Node with IP forwarding enabled."
+
+    def config(self, **params):
+        super(LinuxRouter, self).config(**params)
+        # Enable forwarding on the router
+        self.cmd('sysctl net.ipv4.ip_forward=1')
+
+    def terminate(self):
+        self.cmd('sysctl net.ipv4.ip_forward=0')
+        super(LinuxRouter, self).terminate()
 
 
 # TODO should go in a custom interface
@@ -751,7 +765,7 @@ class StaticTopo(Topo):
         # h = Host( 'h1', privateDirs=[ '/some/directory' ] )
         client = self.addHost('client')
         server = self.addHost('server')
-        gateway = self.addHost('gateway')
+        gateway = self.addHost('gateway', cls=LinuxRouter,)
 
         # everything should go through this switch
         # since we need to cancel only the first paquet
@@ -764,14 +778,17 @@ class StaticTopo(Topo):
         # defaults to 0
         for i, params in enumerate(topo):
             routerName = self.getName(i)
-            router = self.addHost(routerName)
+            router = self.addHost(routerName, cls=LinuxRouter,)
 
             # one good fast path
             # params.update({'use_tbf': True,
             #     'max_queue_size': 15000 # 10 paquets
             # })
+
+            # TODO here I could use this syntax !
+            # self.addLink( s1, router, intfName2='r0-eth1',
+                      # params2={ 'ip' : defaultIP } )  # for clarity
             self.addLink(client, router, **params)
-            # loss=0, )
             link = self.addLink(router, gateway, )
             # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
 
@@ -834,17 +851,22 @@ class StaticTopo(Topo):
             # print("ip 1", str(left2router[1]))
 
             print("left2router.prefixlen=%d" % left2router.prefixlen)
-            leftNode.setIP(str(left2router[1]), 16, '%s-eth%d' % (leftNode.name, i))
+            leftNode.setIP(str(left2router[1]), left2router.prefixlen, '%s-eth%d' % (leftNode.name, i))
             r.setIP(str(left2router[2]), left2router.prefixlen, f"{r.name}-eth0")
             r.setIP(str(right2router[2]), right2router.prefixlen, f"{r.name}-eth1")
             # here we use a mask that covers networks from the gateay till the leftNode
             # (including the router ) right2router.prefixlen,
-            rightNode.setIP(str(right2router[1]), 16, '%s-eth%d' % (rightNode.name, i))
+            rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
 
+            rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
+                                % (right2router[2], f"{rightNode.name}-eth{i}"))
             # by default route to the rightmost node
-            r.cmd("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
+            r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
 
+            # TODO remove
             r.cmd('sysctl -w net.ipv4.ip_forward=1')
+
+            # not sure right node is of class LinuxRouter
             rightNode.cmd('sysctl -w net.ipv4.ip_forward=1')
 
         # str(right2router[2])
@@ -853,9 +875,16 @@ class StaticTopo(Topo):
         rightNode.setIP(str(gw2s[1]), gw2s.prefixlen, f"{rightNode.name}-eth%d" % (gwNbIntfs-1))
         server.setIP(str(gw2s[2]), gw2s.prefixlen, f"{server.name}-eth0")
 
+        # routerName = self.getName(i)
+        # r = network.get(routerName)
+        # TODO fix
+        leftNode.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
+                        ("10.0.0.2", f"{leftNode.name}-eth0"))
+
         # rightNode.cmd(f"ip route add {gw2s} via {gw2s[1]} dev {rightNode.name}-eth0")
         # %s" % str(gw2s[2]))
-        server.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (str(gw2s[1]), f"{server.name}-eth0"))
+        server.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
+                        (str(gw2s[1]), f"{server.name}-eth0"))
         # server.cmd("ip route add default via %s" % str(gw2s[2]))
         # Make sure that the client ha mptcp configured correctly
 
