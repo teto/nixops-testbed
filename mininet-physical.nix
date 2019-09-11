@@ -22,10 +22,15 @@
 
       # TODO keep for later
       #  boot.consoleLogLevel=1
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 raid=noautodetect nokaslr";
-      # # # x86_64 is a symlink towards x86
-      # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
-      kernel="/home/teto/bzImage";
+
+      # https://serverfault.com/questions/803388/what-is-the-difference-between-dev-vda-and-dev-sda
+      # vda => paravirtualized, should be faster
+      # sda => fullyvirtualized, should be slower ?
+
+
+      # for now it looks too dangerous aka it doesn't seem to work
+      # cmdline="root=/dev/vda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 raid=noautodetect nokaslr";
+      # kernel="/home/teto/bzImage";
 
       # added in https://github.com/NixOS/nixops/pull/922
       storagePool = "ext";

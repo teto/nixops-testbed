@@ -20,7 +20,8 @@ let
         # my test module
         # /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
 
-        /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
+        # /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
+
         # /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/servers/common-server.nix
         # for now don't use it
@@ -33,11 +34,40 @@ let
   # eventually to work around https://github.com/NixOS/nixops/issues/931#issuecomment-385662909
   # mount -o remount,rw /nix/store
   # chown -R root:root /nix/store
+
+  # TODO I should use labels instead ? so that it remains consistent between
+  # buses (IDE/VIRTIO)
+  # system.activationScripts.createDevRoot = ''
+  #   # if does not exist ?!
+  #   ln -s /dev/vda1 /dev/root
+  # '';
+
+    # boot.kernelModules
+    #     boot.initrd.availableKernelModules or boot.initrd.kernelModules.
+
+
   boot.postBootCommands = ''
     # after first deploy
-    ln -s /dev/sda1 /dev/root
+    ln -s /dev/vda1 /dev/root
 
   '';
+
+  boot.consoleLogLevel=8;
+
+  # Look at http://multipath-tcp.org/pmwiki.php/Users/ConfigureMPTCP
+  boot.kernel.sysctl = {
+    # https://lwn.net/Articles/542642/
+    "net.ipv4.tcp_early_retrans" = 3;
+
+    # VERY IMPORTANT to disable syncookies since it will change the timestamp
+    "net.ipv4.tcp_syncookies" = 0;
+
+    # seems to generate problems when connecting via ssh; for now disable it
+    "net.ipv4.tcp_timestamps" = 0;
+
+    "net.mptcp.mptcp_checksum" = 0;
+    "net.mptcp.mptcp_enabled" = 0;
+  };
 
   system.activationScripts.nixops-vm-fix-931 = ''
     if ls -l /nix/store | grep sudo | grep -q nogroup; then
@@ -46,6 +76,10 @@ let
     fi
   '';
 
+
+
+  # TODO let's ignore mininet for now
+  # networking.useDHCP = true;
 
   #
   security.sudo.wheelNeedsPassword = false;
@@ -88,20 +122,30 @@ let
   # ]
   ;
 
-  boot.kernelParams = [ "earlycon=ttyS0" "console=ttyS0" "boot.debug=1" "boot.consoleLogLevel=1" ];
+  # similar to the physical config when passing
+  # pass root as well
+  boot.kernelParams = [
+    "earlycon=ttyS0"
+    "console=ttyS0"
+    "boot.debug=1"
+    # "boot.consoleLogLevel=1"
+    "raid=noautodetect"
+    "root=/dev/vda1"
+  ];
 
   # for use in libvirt
   boot.initrd.availableKernelModules = [ "ext4" ];
 
   nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ];
 
-  networking.mptcp = {
-    enable = true;
-    debug = true;
-    pathManager = "netlink";
-    # package = pkgs.linux_mptcp_trunk_raw;
-    package = myKernel;
-  };
+  # networking.mptcp = {
+  #   enable = false;
+  #   debug = true;
+  #   # TODO set it during the experiments only
+  #   # pathManager = "netlink";
+  #   # package = pkgs.linux_mptcp_trunk_raw;
+  #   package = myKernel;
+  # };
 
 
   networking.networkmanager = {
@@ -117,16 +161,16 @@ let
       "interface-name:client-*"
       "interface-name:server-*"
     ];
-  # see networkmanager.conf
-  # extraConfig = ''
-  # [device]
-  # match-device=interface-name:client-*
-  # managed=1
-  # # ignore-carrier
-  # '';
+    # see networkmanager.conf
+    # extraConfig = ''
+    # [device]
+    # match-device=interface-name:client-*
+    # managed=1
+    # # ignore-carrier
+    # '';
 
-  # to prevent networkmanager from interfering with the mininet configuration
-  # what kind of error did trigger that ?
+    # to prevent networkmanager from interfering with the mininet configuration
+    # what kind of error did trigger that ?
 
     # dns = "none";
   };
