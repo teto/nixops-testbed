@@ -36,7 +36,8 @@
       storagePool = "ext";
 
       # this is the default
-      # networks = [ { source = "default"; type= "virtual"; } ];
+      # networks = [ { source = "default"; type= "network"; } ];
+
       extraDomainXML = ''
         <on_crash>preserve</on_crash>
       '';

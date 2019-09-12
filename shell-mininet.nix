@@ -57,7 +57,7 @@ in
     # echo "${my_nvim}"
     # export PATH="${my_nvim}/bin:$PATH"
     shellHook = ''
-      export SCRIPT=$(dirname ${./mn_test.py})
+      export SCRIPT="$(dirname ${./mn_test.py})"
      echo "Run as `nix-shell --arg host true shell-mininet.nix` if on the host"
      echo "toto"
     '';
