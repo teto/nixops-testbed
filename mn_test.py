@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell
-#!nix-shell shell-mininet.nix -i python --show-trace
+#!nix-shell -vvv shell-mininet.nix -i python --show-trace
 
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080

@@ -56,9 +56,10 @@ in
     # echo "${builtins.toString nvimConfig.python3Env}"
     # echo "${my_nvim}"
     # export PATH="${my_nvim}/bin:$PATH"
+     # echo "Run as `nix-shell --arg host true shell-mininet.nix` if on the host"
+     # echo "toto"
     shellHook = ''
-      export SCRIPT="$(dirname ${./mn_test.py})"
-     echo "Run as `nix-shell --arg host true shell-mininet.nix` if on the host"
-     echo "toto"
+      export SCRIPT_MATT="${builtins.toPath ./.}"
+      echo "$SCRIPT_MATT"
     '';
   }
