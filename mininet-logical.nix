@@ -76,6 +76,13 @@ let
     fi
   '';
 
+  # services.qemuGuest.enable = true;
+
+  # Just in my branch for now
+  services.openssh.banner = "Hello Matt";
+
+
+  # environment.etc."motd" = 
 
 
   # TODO let's ignore mininet for now
