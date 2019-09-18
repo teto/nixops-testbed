@@ -42,17 +42,25 @@ let
   #   ln -s /dev/vda1 /dev/root
   # '';
 
+
+  # might be necessary to deal with some options
+# CONFIG_TLS=m
+# # CONFIG_TLS_DEVICE is not set
     # boot.kernelModules
     #     boot.initrd.availableKernelModules or boot.initrd.kernelModules.
 
+  networking.iproute2.enable = true;
 
-  boot.postBootCommands = ''
-    # after first deploy
-    ln -s /dev/vda1 /dev/root
+  # not needed
+  # boot.postBootCommands = ''
+  #   # after first deploy
+  #   ln -s /dev/vda1 /dev/root
 
-  '';
+  # '';
 
-  boot.consoleLogLevel=8;
+
+  # too verbose
+  # boot.consoleLogLevel=8;
 
   # Look at http://multipath-tcp.org/pmwiki.php/Users/ConfigureMPTCP
   boot.kernel.sysctl = {
@@ -79,8 +87,15 @@ let
   # services.qemuGuest.enable = true;
 
   # Just in my branch for now
-  services.openssh.banner = "Hello Matt";
+  services.openssh.banner = ''
+    After the first deployment you can add to the domain:
+    <kernel>/home/teto/bzImage</kernel>
+    <cmdline>root=/dev/vda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 raid=noautodetect nokaslr</cmdline>
 
+  To run tests, just 
+    cd testbed
+    ./mn_test.py -d debug iperf
+  '';
 
   # environment.etc."motd" = 
 
@@ -112,6 +127,7 @@ let
     # tshark
     home-manager
     tcpdump
+    traceroute
     python
     # will need to learn how to use it
     tmux
