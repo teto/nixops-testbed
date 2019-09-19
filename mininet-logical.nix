@@ -41,6 +41,11 @@ let
   #   # if does not exist ?!
   #   ln -s /dev/vda1 /dev/root
   # '';
+  # not needed
+  # boot.postBootCommands = ''
+  #   # after first deploy
+  #   ln -s /dev/vda1 /dev/root
+  # '';
 
 
   # might be necessary to deal with some options
@@ -50,13 +55,6 @@ let
     #     boot.initrd.availableKernelModules or boot.initrd.kernelModules.
 
   networking.iproute2.enable = true;
-
-  # not needed
-  # boot.postBootCommands = ''
-  #   # after first deploy
-  #   ln -s /dev/vda1 /dev/root
-
-  # '';
 
 
   # too verbose
@@ -115,7 +113,7 @@ let
   # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux;
 
   # WARNING: pick a kernel along the same version as tc ?
-  # boot.kernelPackages = pkgs.linuxPackages_mptcp;
+  boot.kernelPackages = pkgs.linuxPackages_mptcp;
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
@@ -126,6 +124,7 @@ let
     # netperf
     # tshark
     home-manager
+    nettools # for netstat
     tcpdump
     traceroute
     python

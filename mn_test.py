@@ -861,7 +861,17 @@ class StaticTopo(Topo):
             rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
                                % (right2router[2], f"{rightNode.name}-eth{i}"))
             # by default route to the rightmost node
-            r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
+            # r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
+
+
+    #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
+            print ("DEBUG MAAAATTT")
+            r.cmdPrint("ip route add {net} via {ip} dev {intf}".format(
+                # server
+                net=gw2s,
+                ip=right2router[2],
+                intf=f"{r.name}-eth1"
+            ))
 
             # TODO remove
             r.cmd('sysctl -w net.ipv4.ip_forward=1')
