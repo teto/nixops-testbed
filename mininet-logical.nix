@@ -41,11 +41,12 @@ let
   #   # if does not exist ?!
   #   ln -s /dev/vda1 /dev/root
   # '';
-  # not needed
-  # boot.postBootCommands = ''
-  #   # after first deploy
-  #   ln -s /dev/vda1 /dev/root
-  # '';
+
+  # needed when running
+  boot.postBootCommands = ''
+    # after first deploy
+    ln -s /dev/vda1 /dev/root
+  '';
 
 
   # might be necessary to deal with some options
@@ -113,7 +114,9 @@ let
   # boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux;
 
   # WARNING: pick a kernel along the same version as tc ?
-  boot.kernelPackages = pkgs.linuxPackages_mptcp;
+  # linux
+  # boot.kernelPackages = pkgs.linuxPackages_mptcp;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_mptcp_guest;
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
