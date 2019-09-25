@@ -61,7 +61,8 @@ else
 	if [ -z "$IP4_GATEWAY" ]; then
 		ip route add table "$DEVICE_IFACE" default via "$IP4_GATEWAY" dev "$DEVICE_IFACE"
 	fi
-	ip route add table "$DEVICE_IFACE" default  dev "$DEVICE_IP_IFACE" scope link
+	# scope link
+	ip route add table "$DEVICE_IFACE" default  dev "$DEVICE_IP_IFACE" 
 	ip rule add from "$IPADDR" table "$DEVICE_IFACE"
 fi
 

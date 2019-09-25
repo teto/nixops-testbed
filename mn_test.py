@@ -1,6 +1,7 @@
 #!/usr/bin/env nix-shell
 #!nix-shell shell-mininet.nix -i python --show-trace
 
+# TODO test https://stackoverflow.com/questions/46537736/mininet-cant-ping-across-2-routers
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080
 # in order to build up
@@ -841,11 +842,12 @@ class StaticTopo(Topo):
             leftNode.setIP(str(left2router[1]), left2router.prefixlen, '%s-eth%d' % (leftNode.name, i))
             r.setIP(str(left2router[2]), left2router.prefixlen, f"{r.name}-eth0")
             r.setIP(str(right2router[2]), right2router.prefixlen, f"{r.name}-eth1")
+
             # here we use a mask that covers networks from the gateay till the leftNode
             # (including the router ) right2router.prefixlen,
             rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
 
-            # via accepts a network ?
+            # routes from one side to the side beside the router
             rightNode.cmdPrint("ip route add %s scope global via %s dev %s"
                                % (left2router, right2router[2], f"{rightNode.name}-eth{i}"))
             leftNode.cmdPrint("ip route add %s scope global via %s dev %s"
@@ -858,7 +860,7 @@ class StaticTopo(Topo):
             # r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
 
 
-    #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
+    #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.nameg
             print ("DEBUG MAAAATTT")
 
             # add route from router towards server
@@ -870,7 +872,7 @@ class StaticTopo(Topo):
             ))
 
             # TODO remove
-            r.cmd('sysctl -w net.ipv4.ip_forward=1')
+            # r.cmd('sysctl -w net.ipv4.ip_forward=1')
 
             # not sure right node is of class LinuxRouter
             rightNode.cmd('sysctl -w net.ipv4.ip_forward=1')
