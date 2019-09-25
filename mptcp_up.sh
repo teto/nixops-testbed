@@ -55,15 +55,17 @@ else
 	# 	# via "$DEVICE_IFACE"
 	# fi
 
+
+	ip rule add from "$IPADDR" table "$DEVICE_IFACE"
+
 	# via "$GATEWAY"
 	# la il nous manque des GW pour la configuration statique :/
 	# set -e
 	if [ -z "$IP4_GATEWAY" ]; then
-		ip route add table "$DEVICE_IFACE" default via "$IP4_GATEWAY" dev "$DEVICE_IFACE"
+		ip route add default via "$IP4_GATEWAY" dev "$DEVICE_IFACE" table "$DEVICE_IFACE"
 	fi
 	# scope link
-	ip route add table "$DEVICE_IFACE" default  dev "$DEVICE_IP_IFACE" 
-	ip rule add from "$IPADDR" table "$DEVICE_IFACE"
+	ip route add  dev "$DEVICE_IP_IFACE" table "$DEVICE_IFACE"
 fi
 
 

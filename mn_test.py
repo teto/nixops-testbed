@@ -215,19 +215,19 @@ def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
     """
     # or pexec ?
     # seems like we can't pass a custom environment with
+    log.debug("Running hook %s" % hook_filename)
     log.info("building MPTCP routing table for intf %s", intf.name)
     # log.debug("running hook on intf"
 
-    #
-    # gw = intf.link.node1 if intf.link.node2 == node else intf.link.node1
     env = copy.copy(os.environ)
-    print("intferface: %r, %r" % (intf.name, intf.IP()))
+    # print("intferface: %r, %r" % (intf.name, intf.IP()))
     extraEnv = {
         "DEVICE_IFACE": intf.name,
         # "DHCP4_IP_ADDRESS": intf.IP(),
         "IP4_ADDRESS_0": intf.IP(),
         "DEVICE_IP_IFACE": intf.name,
     }
+    print("Faking variables: %r" % extraEnv)
     env.update(extraEnv)
     # only if needed
     # # (replace last number)
