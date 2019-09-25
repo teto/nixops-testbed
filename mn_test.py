@@ -119,13 +119,11 @@ forward = {'delay': "10ms", "loss": 10}
 backward = {'delay': "50ms"}
 
 topoAsymetric = [
-    # loss is in percoutage
-    # 'delay': "20ms",
-    {'bw': 2, "max_queue_size": 1000, "use_htb": True,
-        'params1': forward, 'params2': backward
-     },
-    # { 'bw': 2, 'delay': "20ms", "loss": 20},
-    {'bw': 2, 'delay': "20ms", "loss": 0},
+    # loss is in percoutage 'delay': "20ms",
+    # {'bw': 2, "max_queue_size": 1000, "use_htb": True,
+    #     'params1': forward, 'params2': backward
+    #  },
+    {'bw': 2, 'delay': "20ms", "loss": 1},
 ]
 
 topoSymetric = [
@@ -217,16 +215,19 @@ def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
     # or pexec ?
     # seems like we can't pass a custom environment with
     log.info("building MPTCP routing table for intf %s", intf.name)
+    # log.debug("running hook on intf"
 
     #
     # gw = intf.link.node1 if intf.link.node2 == node else intf.link.node1
     env = copy.copy(os.environ)
-    env.update({
+    print("intferface: %r, %r" % (intf.name, intf.IP()))
+    extraEnv = {
         "DEVICE_IFACE": intf.name,
         # "DHCP4_IP_ADDRESS": intf.IP(),
         "IP4_ADDRESS_0": intf.IP(),
         "DEVICE_IP_IFACE": intf.name,
-    })
+    }
+    env.update(extraEnv)
     # only if needed
     # # (replace last number)
     # "IP4_GATEWAY": gateway
@@ -273,8 +274,9 @@ class Test(object):
         run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
 
         try:
-            run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
-            run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
+            pass
+            # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+            # run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
         except Exception as e:
             print("WARNING %s" % e)
 
@@ -333,7 +335,6 @@ class Test(object):
         # todo use dumpcap instead
         # dumpcap -q -w
         # for tcpdump use -U
-        # client.cmd(cmd,)
 
         # BACKUP solution
         # self.start_tcpdump(node, **kwargs)
@@ -365,7 +366,6 @@ class Test(object):
     def start_iperf_server(self, node, **kwargs):
         # iperf 3 version
         # "Normally, the test data is sent from the client to the server,"
-        # number_of_paths,
         print("name = %r" % self.name)
         cmd = "iperf3 -s --json --logfile={logfile}".format(
             logfile=self._out("server_iperf", self.name, ".log")
@@ -472,7 +472,6 @@ class IperfTest(Test):
     #     reinject_out = self._out("check", run, ".csv")
     #     # TODO temporary for testing
     #     reinject_out = os.devnull;
-    #     number_of_paths = kwargs.get('number_of_paths')
     #     # check_reinject = kwargs.get("")
     #     print("reinject_out=", reinject_out)
     #     # check_reinject = True
@@ -515,7 +514,6 @@ class IperfTest(Test):
             # drop it
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
-            # paths=number_of_paths
             logfile=self._out("client_iperf", "path", number_of_paths, "run", run, ".log")
         )
         client.cmdPrint(cmd)
@@ -541,7 +539,6 @@ class IperfWithLostLinks(IperfTest):
             # drop it
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
-            # paths=number_of_paths
             logfile=self._out("client_iperf", "path", number_of_paths, "run", run, ".log")
         )
         client.cmdPrint(cmd)
@@ -570,11 +567,6 @@ class TlpTest(Test):
         # TODO pass ifname ?
 
         attach_filter(gateway)
-
-    # def runExperiments(self, net, **kwargs):
-    #     for run in range(args.get("runs", 1)):
-    #         test.run_xp(net, run, **args)
-
 
 # class ReinjectionTest(Test):
 
@@ -683,19 +675,12 @@ class DackTest(Test):
         server.getIP()
         cmd = cmd % ("7.7.7.7:8000", fileToDownload)
         #     import re
-        # elapsed_ms_str = re.sub("tcpdump.*", "", client.cmd( % (topo.server_addr, filename)).replace("> ", ""))
-        # elapsed_ms = float(elapsed_ms_str)*1000
 
-        # out = client.monitor(timeoutms=2000)
         # log.info(cmd)
         # CLI(net)
         print("starting")
         out = client.cmdPrint(cmd)
         print(out)
-        # import re
-        # elapsed_ms_str = re.sub("tcpdump.*", "",
-        # client.cmd("curl -so /dev/null -w '%%{time_total}\n' http://%s/%s" %
-        # (topo.server_addr, filename)).replace("> ", ""))
 
         elapsed_ms_str = out[2:].rstrip()   # replace("> ", ""))
         # print("elapsed_ms_str", elapsed_ms_str)
@@ -755,7 +740,7 @@ class StaticTopo(Topo):
         # self.
         super().__init__(*args, **kwargs)
 
-    def build(self, topo, number_of_paths=2, loss=0):
+    def build(self, topo, loss=0):
         '''
         TODO
         pass the name of left and right nodes, along with their networks
@@ -832,7 +817,7 @@ class StaticTopo(Topo):
         # host4.network /netmask/numaddresses
         # zip over 2 IPv4Networks
         # TODO not 2 ! should depend on number of paths
-        for i in range(2):
+        for i,_ in enumerate(topo):
             print("Setting up for id %d" % i)
 
             # router between client and server
@@ -858,6 +843,7 @@ class StaticTopo(Topo):
             # (including the router ) right2router.prefixlen,
             rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
 
+            # via accepts a network ?
             rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
                                % (right2router[2], f"{rightNode.name}-eth{i}"))
             # by default route to the rightmost node
@@ -866,6 +852,8 @@ class StaticTopo(Topo):
 
     #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
             print ("DEBUG MAAAATTT")
+
+            # add route from router towards server
             r.cmdPrint("ip route add {net} via {ip} dev {intf}".format(
                 # server
                 net=gw2s,
@@ -1093,13 +1081,13 @@ if __name__ == '__main__':
     subprocess.check_call("mkdir -p %s" % args.out, shell=True)
 
     # _out = functools.partial(_gout, kwargs.get('out'))
-    number_of_paths = dargs.get('number_of_paths', 1)
+    # number_of_paths = dargs.get('number_of_paths', 1)
 
     # using
     topo = available_topologies[args.topo]
 
     logging.info("Selected topology %s" % (args.topo))
-    my_topo = StaticTopo(topo=topo, number_of_paths=number_of_paths, )
+    my_topo = StaticTopo(topo=topo, )
     net = Mininet(
         topo=my_topo,
         link=TCLink,
@@ -1155,11 +1143,3 @@ if __name__ == '__main__':
 
     print("finished")
 
-    # if args.debug:
-    #     os.system('sysctl -w net.mptcp.mptcp_debug=1')
-    # else:
-
-    # if args.number_of_subflows:
-    #     number_of_paths = [int(args.number_of_subflows)]
-    # else:
-    #     number_of_paths = [1, 2, 3]
