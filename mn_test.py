@@ -92,7 +92,6 @@ log.addHandler(ch)
 net = None
 
 # https://stackoverflow.com/questions/46537736/mininet-cant-ping-across-2-routers
-# class LinuxRouter():
 
 SERVER_NAME = 'server'
 CLIENT_NAME = 'client'
@@ -200,10 +199,11 @@ class LinuxRouter(Node):
     def config(self, **params):
         super(LinuxRouter, self).config(**params)
         # Enable forwarding on the router
-        self.cmd('sysctl net.ipv4.ip_forward=1')
+        self.cmdPrint('sysctl net.ipv4.ip_forward=1')
+        self.cmdPrint('sysctl net.ipv4.conf.all.rp_filter=0')
 
     def terminate(self):
-        self.cmd('sysctl net.ipv4.ip_forward=0')
+        # self.cmd('sysctl net.ipv4.ip_forward=0')
         super(LinuxRouter, self).terminate()
 
 
@@ -617,7 +617,7 @@ class DackTest(Test):
         super(DackTest, self).__init__("Dack", **kwargs)
 
         # TODO temporary
-        run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
+        # run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
 
     @staticmethod
     def init_subparser(parser):
@@ -804,6 +804,8 @@ class StaticTopo(Topo):
         TODO extend later with
         rename into left/right
         todo use getinterface ip a la place
+
+        See StaticTopo.build
         """
 
         gateway = network.get('gateway')
@@ -844,8 +846,14 @@ class StaticTopo(Topo):
             rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
 
             # via accepts a network ?
-            rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
-                               % (right2router[2], f"{rightNode.name}-eth{i}"))
+            rightNode.cmdPrint("ip route add %s scope global via %s dev %s"
+                               % (left2router, right2router[2], f"{rightNode.name}-eth{i}"))
+            leftNode.cmdPrint("ip route add %s scope global via %s dev %s"
+                               % (right2router, left2router[2], f"{leftNode.name}-eth{i}"))
+
+            # rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
+            #                    % (right2router[2], f"{rightNode.name}-eth{i}"))
+
             # by default route to the rightmost node
             # r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
 
@@ -857,7 +865,7 @@ class StaticTopo(Topo):
             r.cmdPrint("ip route add {net} via {ip} dev {intf}".format(
                 # server
                 net=gw2s,
-                ip=right2router[2],
+                ip=right2router[1],
                 intf=f"{r.name}-eth1"
             ))
 
@@ -880,14 +888,11 @@ class StaticTopo(Topo):
         # %s" % str(gw2s[2]))
         server.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
                         (str(gw2s[1]), f"{server.name}-eth0"))
-        # server.cmd("ip route add default via %s" % str(gw2s[2]))
-        # Make sure that the client ha mptcp configured correctly
 
-        # hook_filename = "/home/teto/nixpkgs2/nixos/modules/services/networking/mptcp/mptcp_up_raw"
         hook_filename = "mptcp_up_raw"
-        # "mptcp_up.sh"
         client.runMptcpHookOnEveryInterface(hook_filename=hook_filename)
 
+        # TODO add route towards server
         leftNode.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
                           ("10.0.0.2", f"{leftNode.name}-eth0"))
 
@@ -1068,8 +1073,8 @@ if __name__ == '__main__':
     global args
     args, unknown_args = parser.parse_known_args()
 
-    run_sysctl("net.mptcp.mptcp_scheduler", args.scheduler)
-    run_sysctl('net.mptcp.mptcp_path_manager', args.path_manager)
+    # run_sysctl("net.mptcp.mptcp_scheduler", args.scheduler)
+    # run_sysctl('net.mptcp.mptcp_path_manager', args.path_manager)
     dargs = vars(args)
 
     setLogLevel(args.debug)

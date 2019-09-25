@@ -116,7 +116,7 @@ let
   # WARNING: pick a kernel along the same version as tc ?
   # linux
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_mptcp_guest;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_latest;
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
@@ -174,30 +174,30 @@ let
 
 
   # plays badly
-  networking.networkmanager = {
-    enable=true;
-    logLevel="DEBUG";
+  # networking.networkmanager = {
+  #   enable=true;
+  #   logLevel="DEBUG";
 
-    # device specific configuration
-    # https://developer.gnome.org/NetworkManager/1.18/NetworkManager.conf.html
-    unmanaged = [
-      "interface-name:r?-*"
-      "interface-name:gateway-*"
-      # "except-interface:"
-      "interface-name:client-*"
-      "interface-name:server-*"
-    ];
-    # see networkmanager.conf
-    # extraConfig = ''
-    # [device]
-    # match-device=interface-name:client-*
-    # managed=1
-    # # ignore-carrier
-    # '';
-    # to prevent networkmanager from interfering with the mininet configuration
-    # what kind of error did trigger that ?
-    # dns = "none";
-  };
+  #   # device specific configuration
+  #   # https://developer.gnome.org/NetworkManager/1.18/NetworkManager.conf.html
+  #   unmanaged = [
+  #     "interface-name:r?-*"
+  #     "interface-name:gateway-*"
+  #     # "except-interface:"
+  #     "interface-name:client-*"
+  #     "interface-name:server-*"
+  #   ];
+  #   # see networkmanager.conf
+  #   # extraConfig = ''
+  #   # [device]
+  #   # match-device=interface-name:client-*
+  #   # managed=1
+  #   # # ignore-carrier
+  #   # '';
+  #   # to prevent networkmanager from interfering with the mininet configuration
+  #   # what kind of error did trigger that ?
+  #   # dns = "none";
+  # };
 
   programs.mininet.enable = true;
 
