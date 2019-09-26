@@ -34,6 +34,7 @@ import shutil
 import time  # for sleep
 # from progmp import ProgMP
 import copy
+from typing import Sequence, List, Dict
 
 # python > 3.7
 from dataclasses import dataclass, field
@@ -53,13 +54,9 @@ from mininet.util import (quietRun, errRun, errFail, moveIntf, isShellBuiltin,
                           numCores, retry, mountCgroups)
 
 import ipaddress as ip
-# ipaddress.IPv4Network
-# list(ip_network('192.0.2.0/29').hosts())
-#
 from builtins import super
 import functools
 import logging
-# import mn_mptcp
 
 
 log = logging.getLogger(__name__)
@@ -67,25 +64,7 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('%(name)s:%(levelname)s: %(message)s')
 ch.setFormatter(formatter)
 log.addHandler(ch)
-# look for __mptcp_reinject_data call
-# [   63.813460] acking on fast path, looking for best sock
-# [   63.813461] Looking for fastest path
 
-# iperf2 version
-# server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-# client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
-
-# netperf version
-# server.cmd('iperf -s -i 1 -y C > out/server_' + str(number_of_paths) + '.log &')
-# client.cmd('iperf -c 10.0.0.2  -n ' + dataAmount + ' -i 1 > out/client_' + str(number_of_paths) + '.log')
-
-# flent version
-# flent rrul -p ping_cdf -l 60 -H address-of-netserver -t text-to-be-included-in-plot -o filename.png
-# server.cmd('netserver -Ddf > out/server_' + str(number_of_paths) + '.log &')
-# TODO test manually first
-# client.cmd('flent rrul -p ping_cdf -l 60 -H 10.0.0.2 -t "mon titre" -o filename.png')
-
-# try:
 
 # todo make it so that we just have to unpack the parameter
 # -n, --bytes n[KM]
@@ -107,6 +86,22 @@ EBPF_DROPPER_BYTECODE = "ebpf_dropper.o"
 # is there a way to autodiscover ?
 SCHEDULERS = ["default", "redundant", "roundrobin", "prevenant", "ecf"]
 # can get parameters from
+
+# @dataclass
+# class LinkSetting:
+#     bw: int
+#     delay: str
+#     loss: str
+
+
+# @dataclass
+# class CustomTopo(StaticTopo):
+
+#     def __init__(self, name, links: Sequence[Dict], *args, **kwargs):
+#         self.name = name
+#         self.links = links
+#         super().__init__(*args, **kwargs)
+
 
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
@@ -152,10 +147,6 @@ topoSinglePath = [
      },
 ]
 
-# topo = topoSinglePath
-# topo = topoWireLessHetero
-# topo = topoSymetric
-topo = topoAsymetric
 
 # So with AsymTCLink one can use
 # Link.__init__(self, node1, node2, port1=port1, port2=port2,
@@ -234,11 +225,12 @@ def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
 # MPTCP vs TCP tests
 # @dataclass
 class Test(object):
-    name: str
+    # name: str
     description = "default description"
 
     def __init__(self,
                  name,
+                 topo,
                  # sysctl values
                  aggr_dupack=0, aggr_rto=0,
                  mptcp_scheduler=None,
@@ -248,14 +240,25 @@ class Test(object):
                  **kwargs
                  ):
         self.name = name
-        assert net
-        self.net = net
+        self.topo = topo
+        self.description = "Please set the description"
 
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
         self._out_folder = kwargs.get("out", "out")
         run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
         run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
+
+        self.net = Mininet(
+            topo=self.topo,
+            link=TCLink,
+            host=MptcpHost,
+            cleanup=True,
+            # inNamespace=False,
+        )
+
+        self.topo.hook(net)
+        net.start()
 
         try:
             pass
@@ -289,10 +292,6 @@ class Test(object):
         subprocess.check_call(cmd, cwd="")
 
         cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
-        # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
-        # node.cmd(cmd)
-        # nix-build
-        # daemon daemon 202.214.86.51
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
     # https://github.com/mininet/mininet/issues/857
@@ -498,7 +497,8 @@ class IperfTest(Test):
             # drop it
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
-            logfile=self._out("client_iperf", "path", topo, "run", run, ".log")
+            logfile=self._out(
+                "client_iperf", "path", self.topo.name, "run", run, ".log")
         )
         client.cmdPrint(cmd)
 
@@ -598,7 +598,8 @@ class TlpTest(Test):
 class DackTest(Test):
 
     def __init__(self, *args, **kwargs):
-        super(DackTest, self).__init__("Dack", **kwargs)
+        super().__init__("Dack", **kwargs)
+        self.description = "Dataack test"
 
         # TODO temporary
         # run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
@@ -720,11 +721,12 @@ class StaticTopo(Topo):
 
     """
 
-    def __init__(self, *args, **kwargs):
-        # self.
+    def __init__(self, topo_name, links: Sequence[Dict], *args, **kwargs):
+        self.topo_name = topo_name
+        self.links = links
         super().__init__(*args, **kwargs)
 
-    def build(self, topo, loss=0):
+    def build(self, loss=0):
         '''
         TODO
         pass the name of left and right nodes, along with their networks
@@ -745,7 +747,7 @@ class StaticTopo(Topo):
         # for r, cmd in [ (self.r3,
         # 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         # defaults to 0
-        for i, params in enumerate(topo):
+        for i, params in enumerate(self.links):
             routerName = self.getName(i)
             router = self.addHost(routerName, cls=LinuxRouter,)
 
@@ -754,15 +756,9 @@ class StaticTopo(Topo):
             #     'max_queue_size': 15000 # 10 paquets
             # })
 
-            # TODO here I could use this syntax !
-            # self.addLink( s1, router, intfName2='r0-eth1',
-                      # params2={ 'ip' : defaultIP } )  # for clarity
             self.addLink(client, router, **params)
             link = self.addLink(router, gateway, )
-            # self.addLink(server, s, bw=100, delay="120ms", loss=float(loss))
 
-        # dans frite, il l'ajoute en dernier
-        # port1/port2
         link2 = self.addLink(server, gateway, )
         print("just for testing, link type = ", type(link2))
 
@@ -803,7 +799,7 @@ class StaticTopo(Topo):
         # host4.network /netmask/numaddresses
         # zip over 2 IPv4Networks
         # TODO not 2 ! should depend on number of paths
-        for i, _ in enumerate(topo):
+        for i, _ in enumerate(self.links):
             print("Setting up for id %d" % i)
 
             # router between client and server
@@ -906,65 +902,6 @@ class StaticTopo(Topo):
         server = network.get("server")
         self.network_generator(network, client, server)
 
-    #     # ideally we could let NetworkManager handle this
-    #       juist loop through the nodes, see which ones are multihomed and trigger them
-    #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
-    #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
-
-    # def hook(self, network): via
-    #     # old hook with a gateway in between: TODO reestablish
-
-    #     client = network.get("client")
-    #     server = network.get("server")
-    #     r1 = network.get(self.getName(0))
-    #     r2 = network.get(self.getName(1))
-    #     gw = network.get("gateway")
-    #     print("client.name=", client.name)
-
-    #     r1.setIP('3.3.3.1', 24, '%s-eth0' % r1.name)
-    #     r1.setIP('5.5.5.1', 24, '%s-eth1' % r1.name)
-
-    #     r2.setIP('4.4.4.1', 24, '%s-eth0' % r2.name)
-    #     r2.setIP('6.6.6.1', 24, '%s-eth1' % r2.name)
-
-    #     gw.setIP('5.5.5.2', 24, '%s-eth0' % gw.name)
-    #     gw.setIP('6.6.6.2', 24, '%s-eth1' % gw.name)
-    #     gw.setIP('7.7.7.1', 24, '%s-eth2' % gw.name)
-
-    #     server.setIP('7.7.7.7', 24, '%s-eth0' % server.name)
-    #     server.cmd("ip route add default via %s" % "7.7.7.1")
-
-    #     # Isn't that handled
-    #     # client.cmd('ip rule add from 3.3.3.3 table 1')
-    #     # client.cmd('ip rule add from 4.4.4.4 table 2')
-    #     # client.cmd('ip route add 3.3.3.0/24 dev %s-eth0 scope link table 1' % client.name)
-    #     # client.cmd('ip route add default from 3.3.3.3 via 3.3.3.1 dev %s-eth0 table 1' % client.name)
-    #     # client.cmd('ip route add 4.4.4.0/24 dev %s-eth1 scope link table 2' % client.name)
-    #     # client.cmd('ip route add 7.7.7.7 from 4.4.4.4 via 4.4.4.1 dev %s-eth1' % client.name)
-    #     # client.cmd('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
-
-    #     # should already be shared
-    #     r1.cmd('sysctl -w net.ipv4.ip_forward=1')
-    #     r2.cmd('sysctl -w net.ipv4.ip_forward=1')
-    #     gw.cmd('sysctl -w net.ipv4.ip_forward=1')
-
-    #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.name)
-    #     gw.cmd('ip route add 4.4.4.0/24 via 6.6.6.1 dev %s-eth1' % gw.name)
-
-    #     r1.cmd('ip route add 7.7.7.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
-    #     r1.cmd('ip route add 4.4.4.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
-    #     r1.cmd('ip route add 6.6.6.0/24 via 5.5.5.2 dev %s-eth1' % r1.name)
-
-    #     r2.cmd('ip route add 7.7.7.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
-    #     r2.cmd('ip route add 3.3.3.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
-    #     r2.cmd('ip route add 5.5.5.0/24 via 6.6.6.2 dev %s-eth1' % r2.name)
-
-    #     client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
-    #     client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
-
-    #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
-    #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
-        # gw.cmdPrint('ip route add default scope global via 5.5.5.1 dev %s-eth0' % gw.name)
 
 def attach_filter(node):
     """
@@ -1030,8 +967,6 @@ if __name__ == '__main__':
     print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
 
     parser = argparse.ArgumentParser()
-    # todo move to test
-    # parser.add_argument("--file", help="The file to download",)
     parser.add_argument("-n", "--number-of-paths", type=int, default=2,
                         help="The number of subflows")
     parser.add_argument("-r", "--reinjections", type=bool, default=False,
@@ -1039,8 +974,9 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'],
                         help="Running in debug mode", default='info')
     # shouldn't let the user choose it, it's too dependant on the experiment
-    parser.add_argument("-t", "--topo", choices=available_topologies.keys(),
-                        help="Topology", default="asymetric")
+    parser.add_argument("-t", "--topo", dest="topo_name",
+                        choices=available_topologies.keys(),
+                        help="Topology", default="symetric")
     parser.add_argument("-c", "--capture", action="store_true",
                         help="capture packets", default=False)
     parser.add_argument("-s", "--scheduler", choices=SCHEDULERS,
@@ -1082,51 +1018,29 @@ if __name__ == '__main__':
     print("creating %s" % args.out)
     subprocess.check_call("mkdir -p %s" % args.out, shell=True)
 
-    # _out = functools.partial(_gout, kwargs.get('out'))
-    # number_of_paths = dargs.get('number_of_paths', 1)
-
-    # using
-    topo = available_topologies[args.topo]
-
-    logging.info("Selected topology %s" % (args.topo))
-    my_topo = StaticTopo(topo=topo, )
-    net = Mininet(
-        topo=my_topo,
-        link=TCLink,
-        host=MptcpHost,
-        cleanup=True,
-        # inNamespace=False,
-        # build=
-    )
-
-    # installs IPs
-    # use build en fait
-    my_topo.hook(net)
-    net.start()
+    logging.info("Selected topology %s", args.topo_name)
+    my_topo = StaticTopo(args.topo_name, available_topologies[args.topo_name])
+    # my_topo = StaticTopo(args.topo_name, topo=topo, )
 
     print("args dict")
     print(dargs)
 
     tempdir = tempfile.mkdtemp()
 
-    # context manager clean up the folder upon exception
-    # with tempfile.TemporaryDirectory() as tempdir:
-    # tempdir.name
-    # dargs["out"] = tempdir
-    dargs.update(net=net)
+    extraDict = {
+        "net": net,
+        "topo": my_topo,
+    }
+    dargs.update(extraDict)
     test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
     # hack
     test._out_folder = tempdir
     logging.info("Launching test %s", args.test_type)
 
     try:
-        client = net.get('client')
-        server = net.get('server')
 
-        # print("setup")
         test.setup(**dargs)
 
-        # print("running xps")
         test.runExperiments(**dargs)
 
     except KeyboardInterrupt:
