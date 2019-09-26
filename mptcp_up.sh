@@ -3,9 +3,8 @@
 
 # can check with (ins)[root@client:~]# journalctl -b -u NetworkManager-dispatcher.service
 # Copy this script into /etc/network/if-up.d/
-TAG1
-7.7.7.1
 # https://developer.gnome.org/NetworkManager/unstable/NetworkManager.html
+# according to family
 set -ex
 
 STATUS=$2
@@ -42,6 +41,7 @@ if [ -n "$DHCP4_IP_ADDRESS" ]; then
 else
 	# PPP or static interface 
 	IPADDR=`echo $IP4_ADDRESS_0 | cut -d \   -f 1 | cut -d / -f 1`
+	# SUBNET=`echo $IP4_ADDRESS_0 | cut -d \   -f 1 | cut -d / -f 2`
 
 	set +e
 	# HAS_DEFAULT_ROUTE=$(ip route get default)
@@ -61,11 +61,13 @@ else
 	# via "$GATEWAY"
 	# la il nous manque des GW pour la configuration statique :/
 	# set -e
-	if [ -z "$IP4_GATEWAY" ]; then
+	if [ ! -z "$IP4_GATEWAY" ]; then
 		ip route add default via "$IP4_GATEWAY" dev "$DEVICE_IFACE" table "$DEVICE_IFACE"
+	else
+		echo "WARN: no gateway"
 	fi
 	# scope link
-	ip route add  dev "$DEVICE_IP_IFACE" table "$DEVICE_IFACE"
+	ip route add "$IP4_ADDRESS_0" dev "$DEVICE_IP_IFACE" table "$DEVICE_IFACE"
 fi
 
 

@@ -184,16 +184,6 @@ def run_sysctl(key, value, **popenargs):
     subprocess.check_call([f"sysctl -w {key}='{value}'"], shell=True)
 
 
-# Problem we wanna solve here:
-# when the interface goes up, it should trigger the hook
-# class MPTCPIntf(Intf):
-#     def setIP(self, *args, **kwargs):
-#         pass
-#     def runHook()
-#         pass
-    # updateIP
-    # updateAddr
-
 class LinuxRouter(Node):
     "A Node with IP forwarding enabled."
 
@@ -208,7 +198,7 @@ class LinuxRouter(Node):
         super(LinuxRouter, self).terminate()
 
 
-# TODO should go in a custom interface
+# TODO should go in a custom interface MPTCPIntf
 def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
     """
     call a script to setup mptcp on a specific interface
@@ -220,10 +210,12 @@ def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
     # log.debug("running hook on intf"
 
     env = copy.copy(os.environ)
-    # print("intferface: %r, %r" % (intf.name, intf.IP()))
+
+    # mimic the static path
     extraEnv = {
         "DEVICE_IFACE": intf.name,
         # "DHCP4_IP_ADDRESS": intf.IP(),
+        "IP4_GATEWAY": gateway,
         "IP4_ADDRESS_0": intf.IP(),
         "DEVICE_IP_IFACE": intf.name,
     }
@@ -231,27 +223,18 @@ def runMptcpHookOnInterface(intf, gateway, hook_filename="mptcp_up.sh"):
     env.update(extraEnv)
     # only if needed
     # # (replace last number)
-    # "IP4_GATEWAY": gateway
     cmd = "sh {} {action} {status}".format(hook_filename, action="fake", status="up")
     # intf.cmd
+    # printCmd instead ?
     out, err, ret = intf.node.pexec(cmd, env=env)
     assert ret == 0, err
     print(out)
 
-
-# def runHookOnAllInterfaces (node, gateway=None, hook_filename="/home/teto/testbed/mptcp_up.sh"):
-#     # would like to use NetworkManager's hooks to generate the MPTCP routing table
-#     # on each host
-#     # https://mail.gnome.org/archives/networkmanager-list/2016-April/msg00083.html
-#     # https://mail.gnome.org/archives/networkmanager-list/2015-October/msg00020.html
-#     for intf in node.intfList():
-#         runMptcpHookOnInterface( )
-
-# class MptcpNode(Node):
-
-
-# TODO look into
+# TODO use a dataclass instead ?
+# MPTCP vs TCP tests
+# @dataclass
 class Test(object):
+    name: str
     description = "default description"
 
     def __init__(self,
@@ -328,7 +311,7 @@ class Test(object):
             sys.exit(1)
 
     def start_tcpdump(self, node, **kwargs):
-        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng")]
+        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, topo, ".pcapng")]
         self.start_daemon(node, cmd)
 
     def start_tshark(self, node, **kwargs):
@@ -342,7 +325,7 @@ class Test(object):
 
         # The file "XX.pcapng" appears to have been cut short in the middle of a packet
         # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
-        pcap_filename = self._out("%s" % node, number_of_paths, ".pcapng")
+        pcap_filename = self._out("%s" % node, topo, ".pcapng")
         # pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
         cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename]
         # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
@@ -515,7 +498,7 @@ class IperfTest(Test):
             # drop it
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
-            logfile=self._out("client_iperf", "path", number_of_paths, "run", run, ".log")
+            logfile=self._out("client_iperf", "path", topo, "run", run, ".log")
         )
         client.cmdPrint(cmd)
 
@@ -540,7 +523,7 @@ class IperfWithLostLinks(IperfTest):
             # drop it
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
-            logfile=self._out("client_iperf", "path", number_of_paths, "run", run, ".log")
+            logfile=self._out("client_iperf", "path", topo, "run", run, ".log")
         )
         client.cmdPrint(cmd)
 
@@ -820,7 +803,7 @@ class StaticTopo(Topo):
         # host4.network /netmask/numaddresses
         # zip over 2 IPv4Networks
         # TODO not 2 ! should depend on number of paths
-        for i,_ in enumerate(topo):
+        for i, _ in enumerate(topo):
             print("Setting up for id %d" % i)
 
             # router between client and server
@@ -851,17 +834,27 @@ class StaticTopo(Topo):
             rightNode.cmdPrint("ip route add %s scope global via %s dev %s"
                                % (left2router, right2router[2], f"{rightNode.name}-eth{i}"))
             leftNode.cmdPrint("ip route add %s scope global via %s dev %s"
-                               % (right2router, left2router[2], f"{leftNode.name}-eth{i}"))
+                              % (right2router, left2router[2], f"{leftNode.name}-eth{i}"))
 
             # rightNode.cmdPrint("ip route add default scope global nexthop via %s dev %s"
             #                    % (right2router[2], f"{rightNode.name}-eth{i}"))
 
             # by default route to the rightmost node
-            # r.cmdPrint("ip route add default scope global nexthop via %s dev %s" % (right2router[1], f"{r.name}-eth1"))
+            # r.cmdPrint("ip route add default scope global nexthop via %s dev %s"
+            # % (right2router[1], f"{r.name}-eth1"))
 
+            # TODO here we assume that the leftNode is the client node
+            # so we can run the hooks on it
+            # connectionsTo
+            leftIntf = leftNode.intf(f"{leftNode.name}-eth{i}")
+            print("Intf %r" % leftIntf)
+            runMptcpHookOnInterface(
+                leftIntf,
+                gateway=str(left2router[2])
+            )
 
     #     gw.cmd('ip route add 3.3.3.0/24 via 5.5.5.1 dev %s-eth0' % gw.nameg
-            print ("DEBUG MAAAATTT")
+            print("DEBUG MAAAATTT")
 
             # add route from router towards server
             r.cmdPrint("ip route add {net} via {ip} dev {intf}".format(
@@ -888,11 +881,18 @@ class StaticTopo(Topo):
         # TODO fix
         # rightNode.cmd(f"ip route add {gw2s} via {gw2s[1]} dev {rightNode.name}-eth0")
         # %s" % str(gw2s[2]))
+        # TODO remove
         server.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
                         (str(gw2s[1]), f"{server.name}-eth0"))
 
-        hook_filename = "mptcp_up_raw"
-        client.runMptcpHookOnEveryInterface(hook_filename=hook_filename)
+        # hook_filename = "mptcp_up_raw"
+        # client.runMptcpHookOnEveryInterface(hook_filename=hook_filename)
+
+        # server.run
+        runMptcpHookOnInterface(
+            intf=server.intf("server-eth0"),
+            gateway=str(gw2s[1]),
+        )
 
         # TODO add route towards server
         leftNode.cmdPrint("ip route add default scope global nexthop via %s dev %s" %
@@ -908,8 +908,6 @@ class StaticTopo(Topo):
 
     #     # ideally we could let NetworkManager handle this
     #       juist loop through the nodes, see which ones are multihomed and trigger them
-    #     runMptcpHookOnInterfaces(client)
-    #     runMptcpHookOnInterfaces(server)
     #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
     #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
 
@@ -964,9 +962,6 @@ class StaticTopo(Topo):
     #     client.setIP('3.3.3.3', 24, '%s-eth0' % client.name)
     #     client.setIP('4.4.4.4', 24, '%s-eth1' % client.name)
 
-    #     # ideally we could let NetworkManager handle this
-    #     runMptcpHookOnInterfaces(client)
-    #     runMptcpHookOnInterfaces(server)
     #     client.cmdPrint('ip route add default via 3.3.3.1 dev %s-eth0' % client.name)
     #     client.cmdPrint('ip route add default scope global nexthop via 3.3.3.1 dev %s-eth0' % client.name)
         # gw.cmdPrint('ip route add default scope global via 5.5.5.1 dev %s-eth0' % gw.name)
@@ -1019,12 +1014,12 @@ class MptcpHost(mininet.net.Host):
         res = self.cmd("mount -t debugfs none /sys/kernel/debug")
         res = self.cmd("mount -t bpf none /sys/fs/bpf/")
 
-    def runMptcpHookOnEveryInterface(self, hook_filename, gateway=None, ):
-        '''
-        '''
-        # self.cmd("ip route flush all")
-        for intf in self.intfList():
-            runMptcpHookOnInterface(intf, gateway, hook_filename)
+    # def runMptcpHookOnEveryInterface(self, hook_filename, ):
+    #     '''
+    #     '''
+    #     # self.cmd("ip route flush all")
+    #     for intf in self.intfList():
+    #         runMptcpHookOnInterface(intf, gateway, hook_filename)
 
 
 if __name__ == '__main__':
@@ -1149,4 +1144,3 @@ if __name__ == '__main__':
         shutil.move(tempdir, dargs["out"])
 
     print("finished")
-
