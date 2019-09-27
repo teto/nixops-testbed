@@ -16,12 +16,9 @@ let
     imports = [
       #  Not needed if we use the libvirt kernel interface
         # /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix
-
         # my test module
         # /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
-
         # /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
-
         # /home/teto/dotfiles/nixpkgs/config-all.nix
         /home/teto/dotfiles/nixpkgs/servers/common-server.nix
         # for now don't use it
@@ -52,15 +49,18 @@ let
   # might be necessary to deal with some options
 # CONFIG_TLS=m
 # # CONFIG_TLS_DEVICE is not set
-    # boot.kernelModules
     #     boot.initrd.availableKernelModules or boot.initrd.kernelModules.
 
   networking.iproute2.enable = true;
 
-
   # too verbose
   # boot.consoleLogLevel=8;
+  # boot.kernelModules = [ ];
 
+  # to support the netlink module
+  # boot.extraModulePackages = [
+  #   pkgs.linux_mptcp_trunk_raw
+  # ];
   # Look at http://multipath-tcp.org/pmwiki.php/Users/ConfigureMPTCP
   boot.kernel.sysctl = {
     # https://lwn.net/Articles/542642/
@@ -116,12 +116,13 @@ let
   # WARNING: pick a kernel along the same version as tc ?
   # linux
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_latest;
+  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_mptcp_guest;
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [
     # flent # https://flent.org/intro.html#quick-start
     # gdb
+    # hping
     owamp # use module instead ?
     ethtool # needed
     # netperf

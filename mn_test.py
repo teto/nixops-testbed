@@ -236,7 +236,7 @@ class Test(object):
                  aggr_dupack=0, aggr_rto=0,
                  mptcp_scheduler=None,
                  mptcp_path_manager=None,
-                 tcp_timestamps=1,
+                 tcp_timestamps=0,
 
                  **kwargs
                  ):
@@ -246,8 +246,13 @@ class Test(object):
         print("MATT topo %r" % self.topo)
 
         if mptcp:
-            run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
-            run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
+            if mptcp_path_manager is not None:
+                run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
+
+            if mptcp_scheduler is not None:
+                run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
+
+            run_sysctl("net.mptcp.mptcp_enabled", 1)
 
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
@@ -294,6 +299,10 @@ class Test(object):
         # cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
         # cmd = ["nix-build", "./default.nix"]
         # subprocess.check_call(cmd, cwd="")
+
+        # TODO need to remove/insert the module beforehand ?
+        # insmod /home/teto/mptcp/build/net/mptcp/mptcp_netlink.ko
+        run_sysctl("net.mptcp.mptcp_path_manager", "netlink")
 
         cmd = ["mptcp-pm", ]
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
