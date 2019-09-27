@@ -25,10 +25,18 @@ if [ -z "$DEVICE_IFACE" ]; then
 	exit 0
 fi
 
+# if [ $(grep -c "$DEVICE_IFACE" "$RT_TABLE") -eq 0 ]; then
+# 	echo "$PREFIX: Adding new routing table $DEVICE_IFACE"
+# 	NUM=$(wc -l < "$RT_TABLE")
+# 	echo "$NUM  $DEVICE_IFACE" >> "$RT_TABLE"
+# fi
 if [ $(grep -c "$DEVICE_IFACE" "$RT_TABLE") -eq 0 ]; then
-	echo "$PREFIX: Adding new routing table $DEVICE_IFACE"
+	echo "Adding new routing table $DEVICE_IFACE"
+
+	# logger -p user.info -t mptcp "Adding new routing table $DEVICE_IFACE"
 	NUM=$(wc -l < "$RT_TABLE")
-	echo "$NUM  $DEVICE_IFACE" >> "$RT_TABLE"
+	# RT_TABLE doesn't contain a newline
+	echo -e "\n$NUM  $DEVICE_IFACE" >> "$RT_TABLE"
 fi
 
 # TODO do it for ipv6 too

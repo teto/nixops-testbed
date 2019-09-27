@@ -232,16 +232,22 @@ class Test(object):
                  name,
                  topo,
                  # sysctl values
+                 mptcp=True,
                  aggr_dupack=0, aggr_rto=0,
                  mptcp_scheduler=None,
-                 # mptcp_path_manager="fullmesh",
+                 mptcp_path_manager=None,
                  tcp_timestamps=1,
-                 net=None,
+
                  **kwargs
                  ):
         self.name = name
         self.topo = topo
         self.description = "Please set the description"
+        print("MATT topo %r" % self.topo)
+
+        if mptcp:
+            run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
+            run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
 
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
@@ -257,8 +263,8 @@ class Test(object):
             # inNamespace=False,
         )
 
-        self.topo.hook(net)
-        net.start()
+        self.topo.hook(self.net)
+        self.net.start()
 
         try:
             pass
@@ -267,8 +273,6 @@ class Test(object):
         except Exception as e:
             print("WARNING %s" % e)
 
-        # run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
-        # run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
         # os.system('sysctl -w net.mptcp.mptcp_debug=0')
         # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
@@ -289,9 +293,9 @@ class Test(object):
         # cabal run daemon daemon $@
         # cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
         # cmd = ["nix-build", "./default.nix"]
-        subprocess.check_call(cmd, cwd="")
+        # subprocess.check_call(cmd, cwd="")
 
-        cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
+        cmd = ["mptcp-pm", ]
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
     # https://github.com/mininet/mininet/issues/857
@@ -310,7 +314,7 @@ class Test(object):
             sys.exit(1)
 
     def start_tcpdump(self, node, **kwargs):
-        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, topo, ".pcapng")]
+        cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, self.topo, ".pcapng")]
         self.start_daemon(node, cmd)
 
     def start_tshark(self, node, **kwargs):
@@ -324,7 +328,7 @@ class Test(object):
 
         # The file "XX.pcapng" appears to have been cut short in the middle of a packet
         # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
-        pcap_filename = self._out("%s" % node, topo, ".pcapng")
+        pcap_filename = self._out("%s" % node, self.topo.topo_name, ".pcapng")
         # pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
         cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename]
         # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
@@ -367,10 +371,10 @@ class Test(object):
         self.start_daemon(node, cmd)
 
     # setup as an abstract to implement
-    def setup(self, net, **kwargs):
+    def setup(self, **kwargs):
+        net = self.net
         client = net.get('client')
         server = net.get(SERVER_NAME)
-        gateway = net.get('gateway')
         # gateway.cmd('sysctl -w net.ipv4.ip_forward=1')
 
         if kwargs.get('interactive'):
@@ -429,17 +433,16 @@ class IperfTest(Test):
         super().__init__("Iperf", *args, **kwargs)
         self.description = "iperf test"
 
-    def setup(self, net, **kwargs):
+    def setup(self, **kwargs):
         print("iperf setup")
-        check_reinject = True
-        client = net.get('client')
+        net = self.net
         server = net.get('server')
         self.start_iperf_server(server)
         # subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
         # TODO temporary must have been prevenant here
         # run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
 
-        super().setup(net, **kwargs)
+        super().setup(**kwargs)
 
     def tearDown(self):
         logging.info("Tearing down")
@@ -479,15 +482,17 @@ class IperfTest(Test):
         # TODO
         run = 0
         client = self.net.get('client')
+        server = self.net.get(SERVER_NAME)
 
         # need to generate a situation with frequent retransmissions
         for run in range(kwargs.get("runs", 1)):
-            self.run_xp(client, run, **kwargs)
+            self.run_xp(client=client, server=server, run=run, **kwargs)
 
-    def run_xp(self, client, run, **kwargs):
+    def run_xp(self, client, server, run, **kwargs):
         # in iperf3, the client sends the data so...
         # self.start_iperf_client(client,  )
         # client = dataAmount
+        # server = self.net.get('server')
         cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
             serverIP=server.IP(),   # seems to work "7.7.7.7"
             # dataAmount="-n " + dataAmount if FILE_TO_TRANSFER is not None else "",
@@ -498,7 +503,7 @@ class IperfTest(Test):
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
             logfile=self._out(
-                "client_iperf", "path", self.topo.name, "run", run, ".log")
+                "client_iperf", "path", self.topo.topo_name, "run", run, ".log")
         )
         client.cmdPrint(cmd)
 
@@ -510,7 +515,7 @@ class IperfWithLostLinks(IperfTest):
         super().__init__("Iperf", *args, **kwargs)
         self.description = "iperf test with intermittent link"
 
-    def run_xp(self, client, run, **kwargs):
+    def run_xp(self, client, server, run, **kwargs):
         # in iperf3, the client sends the data so...
         # self.start_iperf_client(client,  )
         # client = dataAmount
@@ -523,7 +528,7 @@ class IperfWithLostLinks(IperfTest):
             # drop it
             fromFile="-F %s" % (FILE_TO_TRANSFER) if FILE_TO_TRANSFER else "",
             # fromFile=args.file "",
-            logfile=self._out("client_iperf", "path", topo, "run", run, ".log")
+            logfile=self._out("client_iperf", "path", self.topo.topo_name, "run", run, ".log")
         )
         client.cmdPrint(cmd)
 
@@ -544,7 +549,7 @@ class TlpTest(Test):
     # def init(self, *args):
     #     super().__init__("Tlp", *args)
 
-    def setup(self, net):
+    def setup(self, ):
         gateway = net.get('gateway')
         # if kwargs.get("ebpfdrop"):
         print("attach_filter %r" % gateway)
@@ -621,7 +626,7 @@ class DackTest(Test):
 
         # run_sysctl("net.ipv4.tcp_reordering", 3)
 
-        super().setup(net, **kwargs)
+        super().setup(**kwargs)
 
     def runExperiments(self, net, **kwargs):
         client = net.get('client')
@@ -648,12 +653,12 @@ class DackTest(Test):
             _runXPs(1)
             _runXPs(0)
 
-    def run_xp(self, net, run, client, fileToDownload, **kwargs):
+    def run_xp(self, run, client, fileToDownload, **kwargs):
         """
         Start an http server, download a file and saves the transfer time into a csv
         """
-        gateway = net.get('gateway')
-        server = net.get('server')
+        gateway = self.net.get('gateway')
+        server = self.net.get('server')
         # cmd = "wget http://%s/%s -O /dev/null"
         cmd = "curl -so /dev/null -w '%%{time_total}\n' http://%s/%s"
         # TODO use
@@ -723,7 +728,7 @@ class StaticTopo(Topo):
 
     def __init__(self, topo_name, links: Sequence[Dict], *args, **kwargs):
         self.topo_name = topo_name
-        self.links = links
+        self.diamond_links = links
         super().__init__(*args, **kwargs)
 
     def build(self, loss=0):
@@ -747,7 +752,7 @@ class StaticTopo(Topo):
         # for r, cmd in [ (self.r3,
         # 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
         # defaults to 0
-        for i, params in enumerate(self.links):
+        for i, params in enumerate(self.diamond_links):
             routerName = self.getName(i)
             router = self.addHost(routerName, cls=LinuxRouter,)
 
@@ -799,7 +804,7 @@ class StaticTopo(Topo):
         # host4.network /netmask/numaddresses
         # zip over 2 IPv4Networks
         # TODO not 2 ! should depend on number of paths
-        for i, _ in enumerate(self.links):
+        for i, _ in enumerate(self.diamond_links):
             print("Setting up for id %d" % i)
 
             # router between client and server
@@ -967,8 +972,6 @@ if __name__ == '__main__':
     print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--number-of-paths", type=int, default=2,
-                        help="The number of subflows")
     parser.add_argument("-r", "--reinjections", type=bool, default=False,
                         help="Check for reinjections")
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'],
@@ -979,6 +982,8 @@ if __name__ == '__main__':
                         help="Topology", default="symetric")
     parser.add_argument("-c", "--capture", action="store_true",
                         help="capture packets", default=False)
+    parser.add_argument("--tcp", action="store_true",
+                        help="Wether to disable mptcp", default=False)
     parser.add_argument("-s", "--scheduler", choices=SCHEDULERS,
                         help="Mptcp scheduler", default="default")
     parser.add_argument("-p", "--path-manager", choices=["fullmesh", "ndiffports", "netlink"],
@@ -1019,8 +1024,11 @@ if __name__ == '__main__':
     subprocess.check_call("mkdir -p %s" % args.out, shell=True)
 
     logging.info("Selected topology %s", args.topo_name)
-    my_topo = StaticTopo(args.topo_name, available_topologies[args.topo_name])
+    my_topo = StaticTopo(
+        topo_name=args.topo_name,
+        links=available_topologies[args.topo_name])
     # my_topo = StaticTopo(args.topo_name, topo=topo, )
+    logging.info("Selected topology %s", my_topo)
 
     print("args dict")
     print(dargs)

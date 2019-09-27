@@ -13,9 +13,9 @@ let
       jedi
       urllib3
       mypy
-      # pyls-mypy # on le desactive sinon il genere des
+      pyls-mypy # on le desactive sinon il genere des
       # python-language-server
-      # pycodestyle
+      pycodestyle
       mininet-python
       # future
   ];
