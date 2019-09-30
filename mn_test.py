@@ -10,7 +10,8 @@
 
 # python needs to read this
 # -*- coding: utf-8 -*-
-# but it will check just the first 2 lines :/ https://www.python.org/dev/peps/pep-0263/#defining-the-encoding
+# but it will check just the first 2 lines:
+# https://www.python.org/dev/peps/pep-0263/#defining-the-encoding
 
 # https://gist.github.com/tovask/316f0dc855f2459042af403688590a7f
 # https://github.com/SoonyangZhang/mininet-mptcp/tree/master/topology
@@ -170,13 +171,24 @@ available_topologies = {
 # we don't have their RBS scheduler
 # os.system('sysctl -w net.mptcp.mptcp_scheduler=rbs')
 def run_sysctl(key, value, **popenargs):
+    '''
+    you can use -e to ignore errors
+    sysctl: setting key "net.mptcp.mptcp_path_manager": No such file or directory
+    '''
     # todo parse output of check_output instead
     # subprocess.check_call(["sysctl","-w","%s=%s" % (key, value)], shell=True)
-    subprocess.check_call([f"sysctl -w {key}='{value}'"], shell=True)
+    # -q removes stdout content so that we keep only stderr to check
+    # for invalid modules
+    cmd = [f"sysctl -wq {key}='{value}'"]
+    log.debug("Running command:\n%s", cmd)
+    out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+    if out != b'':
+        raise subprocess.CalledProcessError(0, cmd, out.decode())
+        # Exception("Error happened %s" % out)
 
 
 class LinuxRouter(Node):
-    "A Node with IP forwarding enabled."
+    '''A Node with IP forwarding enabled.'''
 
     def config(self, **params):
         super(LinuxRouter, self).config(**params)
@@ -244,6 +256,7 @@ class Test(object):
         self.topo = topo
         self.description = "Please set the description"
         print("MATT topo %r" % self.topo)
+        print("MATT topo %r" % self.topo)
 
         if mptcp:
             if mptcp_path_manager is not None:
@@ -301,17 +314,16 @@ class Test(object):
         # subprocess.check_call(cmd, cwd="")
 
         # TODO need to remove/insert the module beforehand ?
-        # insmod /home/teto/mptcp/build/net/mptcp/mptcp_netlink.ko
         run_sysctl("net.mptcp.mptcp_path_manager", "netlink")
+        # "insmod /home/teto/mptcp/build/net/mptcp/mptcp_netlink.ko"
 
-        cmd = ["mptcp-pm", ]
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
     # https://github.com/mininet/mininet/issues/857
     def start_daemon(self, node, cmd, **kwargs):
 
-        print("starting daemon ?")
-        logging.info("starting %s" % cmd)
+        print("starting daemon...")
+        logging.info("starting: %s", cmd)
         proc = node.popen(cmd, **kwargs)
         self._popens.append(proc)
         print("returncode", proc.returncode)
@@ -443,10 +455,10 @@ class IperfTest(Test):
         self.description = "iperf test"
 
     def setup(self, **kwargs):
-        print("iperf setup")
         net = self.net
-        server = net.get('server')
+        server = net.get(SERVER_NAME)
         self.start_iperf_server(server)
+
         # subprocess.check_call("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
         # TODO temporary must have been prevenant here
         # run_sysctl("net.mptcp.mptcp_scheduler", "redundant")
@@ -517,6 +529,24 @@ class IperfTest(Test):
         client.cmdPrint(cmd)
 
 
+class IperfNetlink(IperfTest):
+    def __init__(self, *args, **kwargs):
+        """
+        """
+        Test.__init__(self, "Iperf (netlink)", *args, **kwargs)
+        self.description = "iperf test"
+
+    def setup(self, **kwargs):
+        client = self.net.get('client')
+        server = self.net.get(SERVER_NAME)
+        cmd = ["mptcp-pm" ]
+        run_sysctl("net.mptcp.mptcp_path_manager", "netlink")
+
+        cmd = ["mptcp-pm", server.IP()]
+        self.start_daemon(client, cmd, shell=True, stderr=subprocess.PIPE)
+        # self.start_nemphis(self, client, cmd, **kwargs)
+        super().setup(**kwargs)
+
 class IperfWithLostLinks(IperfTest):
     def __init__(self, *args, **kwargs):
         """
@@ -558,7 +588,7 @@ class TlpTest(Test):
     # def init(self, *args):
     #     super().__init__("Tlp", *args)
 
-    def setup(self, ):
+    def setup(self, **kwargs ):
         gateway = net.get('gateway')
         # if kwargs.get("ebpfdrop"):
         print("attach_filter %r" % gateway)
@@ -626,7 +656,7 @@ class DackTest(Test):
                             help="number of dupack to consider a fast retransmit")
         return parser
 
-    def setup(self, net, **kwargs):
+    def setup(self, **kwargs):
         logging.info("setup network")
         server = net.get('server')
         gateway = net.get('gateway')
@@ -698,6 +728,7 @@ available_tests = {
     "tlp": TlpTest,
     "iperf": IperfTest,
     "iperfAlt": IperfWithLostLinks,
+    "iperfNetlink": IperfNetlink,
     # "reinjection": ReinjectionTest,
 }
 
@@ -746,7 +777,8 @@ class StaticTopo(Topo):
         pass the name of left and right nodes, along with their networks
         '''
 
-        # If you need per-host private directories, you can specify them as options to Host, for example:
+        # If you need per-host private directories,
+        # you can specify them as options to Host, for example:
         # h = Host( 'h1', privateDirs=[ '/some/directory' ] )
         client = self.addHost('client')
         server = self.addHost('server')
@@ -758,9 +790,6 @@ class StaticTopo(Topo):
         # only one link between the 2
         # https://github.com/mininet/mininet/issues/823
 
-        # for r, cmd in [ (self.r3,
-        # 'tc filter add dev  r3-eth2 ingress bpf obj test_ebpf_tc.o section action direct-action')]:
-        # defaults to 0
         for i, params in enumerate(self.diamond_links):
             routerName = self.getName(i)
             router = self.addHost(routerName, cls=LinuxRouter,)
@@ -832,13 +861,15 @@ class StaticTopo(Topo):
             # print("ip 1", str(left2router[1]))
 
             print("left2router.prefixlen=%d" % left2router.prefixlen)
-            leftNode.setIP(str(left2router[1]), left2router.prefixlen, '%s-eth%d' % (leftNode.name, i))
+            leftNode.setIP(str(left2router[1]), left2router.prefixlen,
+                '%s-eth%d' % (leftNode.name, i))
             r.setIP(str(left2router[2]), left2router.prefixlen, f"{r.name}-eth0")
             r.setIP(str(right2router[2]), right2router.prefixlen, f"{r.name}-eth1")
 
             # here we use a mask that covers networks from the gateay till the leftNode
             # (including the router ) right2router.prefixlen,
-            rightNode.setIP(str(right2router[1]), right2router.prefixlen, '%s-eth%d' % (rightNode.name, i))
+            rightNode.setIP(str(right2router[1]), right2router.prefixlen,
+                '%s-eth%d' % (rightNode.name, i))
 
             # routes from one side to the side beside the router
             rightNode.cmdPrint("ip route add %s scope global via %s dev %s"
@@ -960,6 +991,8 @@ class MptcpHost(mininet.net.Host):
     """
 
     def __init__(self, name, **kwargs):
+        '''
+        '''
 
         super(MptcpHost, self).__init__(name, **kwargs)
         res = self.cmd("mount -t debugfs none /sys/kernel/debug")
@@ -1000,7 +1033,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--interactive", action="store_true",
                         help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
-    parser.add_argument("-o", "--out", action="store", default="out", help="out folder")
+    parser.add_argument("-o", "--out", action="store", default=None, help="out folder")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
     # parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
     # help="Wether to attach our filter")
@@ -1020,8 +1053,6 @@ if __name__ == '__main__':
     global args
     args, unknown_args = parser.parse_known_args()
 
-    # run_sysctl("net.mptcp.mptcp_scheduler", args.scheduler)
-    # run_sysctl('net.mptcp.mptcp_path_manager', args.path_manager)
     dargs = vars(args)
 
     setLogLevel(args.debug)
@@ -1029,8 +1060,6 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
 
     print("CWD=", os.getcwd())
-    print("creating %s" % args.out)
-    subprocess.check_call("mkdir -p %s" % args.out, shell=True)
 
     logging.info("Selected topology %s", args.topo_name)
     my_topo = StaticTopo(
@@ -1056,7 +1085,7 @@ if __name__ == '__main__':
 
     try:
 
-        test.setup(**dargs)
+        test.setup()
 
         test.runExperiments(**dargs)
 
@@ -1070,8 +1099,12 @@ if __name__ == '__main__':
         # TODO reestablish
         # disabled in order to check for journald logs in /j
         # net_cleanup()
+        final = tempdir
+        if args.out != None:
+            log.info("creating %s", args.out)
+            subprocess.check_call("mkdir -p %s" % args.out, shell=True)
+            final = shutil.move(tempdir, dargs["out"])
 
-        print("Moving from %s to %s" % (tempdir, dargs["out"]))
-        shutil.move(tempdir, dargs["out"])
+        log.info("Results in %s", final)
 
     print("finished")

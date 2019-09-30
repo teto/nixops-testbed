@@ -1,0 +1,10 @@
+{
+	"python.autoComplete.showAdvancedMembers": false,
+	// "python.setInterpreter": 
+	// "python.pythonPath": "python",
+	"python.jediEnabled": false,
+	// "python.upgradePythonLanguageServer": true,
+	"python.linting.mypyEnabled": true,
+	// "python.linting.mypyPath"
+	"python.linting.pydocstyleEnabled": false,
+}
