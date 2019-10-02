@@ -24,3 +24,7 @@ https://github.com/francoismichel/ebpf_dropper/tree/networking_2019
 https://multipath-tcp.org/pmwiki.php/Users/Tools
   ip link set dev eth0 multipath off
   ip link set dev eth0 multipath backup
+
+
+To test with the netlink pm:
+sudo ./mn_test.py --out=./out -c -t symetric -d debug iperfNetlink

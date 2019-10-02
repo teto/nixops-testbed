@@ -72,6 +72,7 @@ log.addHandler(ch)
 # TODO remove
 net = None
 
+PATH_MANAGER_FILENAME = "mptcp-pm.log"
 # https://stackoverflow.com/questions/46537736/mininet-cant-ping-across-2-routers
 
 SERVER_NAME = 'server'
@@ -183,8 +184,9 @@ def run_sysctl(key, value, **popenargs):
     log.debug("Running command:\n%s", cmd)
     out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
     if out != b'':
-        raise subprocess.CalledProcessError(0, cmd, out.decode())
-        # Exception("Error happened %s" % out)
+        # defined in https://kite.com/python/docs/subprocess.CalledProcessError
+        # raise subprocess.CalledProcessError(0, cmd, out.decode())
+        raise Exception("Error happened %s" % out.decode())
 
 
 class LinuxRouter(Node):
@@ -303,27 +305,27 @@ class Test(object):
     def init_subparser(parser):
         return parser
 
-    def start_nemphis(self, node, cmd, **kwargs):
-        '''
-        start the NEtlink MPtcp HAskell daemon
-        '''
-        # daemon $@
-        # cabal run daemon daemon $@
-        # cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
-        # cmd = ["nix-build", "./default.nix"]
-        # subprocess.check_call(cmd, cwd="")
+    # def start_nemphis(self, node, cmd, **kwargs):
+    #     '''
+    #     start the NEtlink MPtcp HAskell daemon
+    #     '''
+    #     # daemon $@
+    #     # cabal run daemon daemon $@
+    #     # cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
+    #     # cmd = ["nix-build", "./default.nix"]
+    #     # subprocess.check_call(cmd, cwd="")
 
-        # TODO need to remove/insert the module beforehand ?
-        run_sysctl("net.mptcp.mptcp_path_manager", "netlink")
-        # "insmod /home/teto/mptcp/build/net/mptcp/mptcp_netlink.ko"
+    #     # TODO need to remove/insert the module beforehand ?
 
-        self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
+    #     self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
 
     # https://github.com/mininet/mininet/issues/857
     def start_daemon(self, node, cmd, **kwargs):
 
         print("starting daemon...")
         logging.info("starting: %s", cmd)
+
+        # could use pexec as well ?
         proc = node.popen(cmd, **kwargs)
         self._popens.append(proc)
         print("returncode", proc.returncode)
@@ -333,6 +335,8 @@ class Test(object):
             print("returned", proc.returncode)
             # print(err)
             sys.exit(1)
+
+        return proc
 
     def start_tcpdump(self, node, **kwargs):
         cmd = ["tcpdump", "-i", "any", "-w", self._out("%s" % node, self.topo, ".pcapng")]
@@ -539,12 +543,19 @@ class IperfNetlink(IperfTest):
     def setup(self, **kwargs):
         client = self.net.get('client')
         server = self.net.get(SERVER_NAME)
-        cmd = ["mptcp-pm" ]
-        run_sysctl("net.mptcp.mptcp_path_manager", "netlink")
+        try:
+            run_sysctl("net.mptcp.mptcp_path_manager", "netlink")
+        except Exception as e:
+            print(e)
+            print("You probably need to load the netlink module, e.g.:")
+            print("insmod /home/teto/mptcp/build/net/mptcp/mptcp_netlink.ko")
+            exit(1)
 
-        cmd = ["mptcp-pm", server.IP()]
-        self.start_daemon(client, cmd, shell=True, stderr=subprocess.PIPE)
-        # self.start_nemphis(self, client, cmd, **kwargs)
+        cmd = ["mptcp-pm", "daemon", server.IP()]
+        # TODO I want to log its output
+        # self.cmdPrint("mptcp-pm")
+        fd = open(self._out(PATH_MANAGER_FILENAME), "w+")
+        self.start_daemon(client, cmd, shell=True, stdout=fd, stderr=subprocess.STDOUT)
         super().setup(**kwargs)
 
 class IperfWithLostLinks(IperfTest):
@@ -1034,6 +1045,9 @@ if __name__ == '__main__':
                         help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default=None, help="out folder")
+
+    parser.add_argument("--post-process", "-pp", action="store", default=None,
+        help="Run a postprocess script")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
     # parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
     # help="Wether to attach our filter")
@@ -1085,7 +1099,7 @@ if __name__ == '__main__':
 
     try:
 
-        test.setup()
+        test.setup(**dargs)
 
         test.runExperiments(**dargs)
 
@@ -1100,11 +1114,20 @@ if __name__ == '__main__':
         # disabled in order to check for journald logs in /j
         # net_cleanup()
         final = tempdir
-        if args.out != None:
+        if args.out is not None:
             log.info("creating %s", args.out)
             subprocess.check_call("mkdir -p %s" % args.out, shell=True)
             final = shutil.move(tempdir, dargs["out"])
 
         log.info("Results in %s", final)
+        # log.info("Results in %s", final)
+        import glob
+        final = os.path.abspath(final)
+        pcaps = glob.glob(os.path.join(final, "*.pcapng"))
+        print(pcaps)
+        # subprocess.call(["ls", "-l", final])
+
+        # if args.postprocess:
+        #     subprocess.call([args.postprocess, final])
 
     print("finished")
