@@ -1,6 +1,7 @@
 #!/usr/bin/env nix-shell
 #!nix-shell shell-mininet.nix -i python --show-trace
 
+# TODO load config via configparser
 # TODO test https://stackoverflow.com/questions/46537736/mininet-cant-ping-across-2-routers
 # Upon start, nix will try to fetch source it doesn't have
 # => on the host you need to start nix-serve -p 8080
@@ -58,6 +59,7 @@ import ipaddress as ip
 from builtins import super
 import functools
 import logging
+import configparser
 
 
 log = logging.getLogger(__name__)
@@ -551,7 +553,13 @@ class IperfNetlink(IperfTest):
             print("insmod /home/teto/mptcp/build/net/mptcp/mptcp_netlink.ko")
             exit(1)
 
-        cmd = ["mptcp-pm", "daemon", server.IP()]
+        cmd = [
+            "mptcp-pm", "daemon", server.IP(),
+            # or just use fake_solver and add it to PATH
+            # os.path.join(os.getcwd(), "fake_solver")
+            # /home/teto/mptcp-pm/hs
+            "--optimizer=./fake_solver"
+        ]
         # TODO I want to log its output
         # self.cmdPrint("mptcp-pm")
         fd = open(self._out(PATH_MANAGER_FILENAME), "w+")
@@ -599,7 +607,7 @@ class TlpTest(Test):
     # def init(self, *args):
     #     super().__init__("Tlp", *args)
 
-    def setup(self, **kwargs ):
+    def setup(self, **kwargs):
         gateway = net.get('gateway')
         # if kwargs.get("ebpfdrop"):
         print("attach_filter %r" % gateway)
@@ -873,14 +881,14 @@ class StaticTopo(Topo):
 
             print("left2router.prefixlen=%d" % left2router.prefixlen)
             leftNode.setIP(str(left2router[1]), left2router.prefixlen,
-                '%s-eth%d' % (leftNode.name, i))
+                           '%s-eth%d' % (leftNode.name, i))
             r.setIP(str(left2router[2]), left2router.prefixlen, f"{r.name}-eth0")
             r.setIP(str(right2router[2]), right2router.prefixlen, f"{r.name}-eth1")
 
             # here we use a mask that covers networks from the gateay till the leftNode
             # (including the router ) right2router.prefixlen,
             rightNode.setIP(str(right2router[1]), right2router.prefixlen,
-                '%s-eth%d' % (rightNode.name, i))
+                            '%s-eth%d' % (rightNode.name, i))
 
             # routes from one side to the side beside the router
             rightNode.cmdPrint("ip route add %s scope global via %s dev %s"
@@ -1125,7 +1133,7 @@ if __name__ == '__main__':
         final = os.path.abspath(final)
         pcaps = glob.glob(os.path.join(final, "*.pcapng"))
         print(pcaps)
-        # subprocess.call(["ls", "-l", final])
+        subprocess.call(["cat", os.path.join(final, PATH_MANAGER_FILENAME)])
 
         # if args.postprocess:
         #     subprocess.call([args.postprocess, final])
