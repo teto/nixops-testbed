@@ -558,7 +558,9 @@ class IperfNetlink(IperfTest):
             # or just use fake_solver and add it to PATH
             # os.path.join(os.getcwd(), "fake_solver")
             # /home/teto/mptcp-pm/hs
-            "--optimizer=./fake_solver"
+            "--optimizer=./fake_solver",
+            # TODO passer le dossier temporaire
+            # ""
         ]
         # TODO I want to log its output
         # self.cmdPrint("mptcp-pm")
@@ -1054,8 +1056,8 @@ if __name__ == '__main__':
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
     parser.add_argument("-o", "--out", action="store", default=None, help="out folder")
 
-    parser.add_argument("--post-process", "-pp", action="store", default=None,
-        help="Run a postprocess script")
+    # parser.add_argument("--post-process", "-pp", action="store", default=None,
+    #                     help="Run a postprocess script")
     parser.add_argument("--runs", action="store", type=int, default=1, help="Number of runs")
     # parser.add_argument("-f", "--ebpfdrop", action="store_true", default=False,
     # help="Wether to attach our filter")
@@ -1111,6 +1113,12 @@ if __name__ == '__main__':
 
         test.runExperiments(**dargs)
 
+        final = tempdir
+        import glob
+        pcaps = glob.glob(os.path.join(final, "*.pcapng"))
+        print(pcaps)
+        print("mptcpanalyzer -l " + os.path.join(final, pcaps[0]) + " 'mptcp_summary -H 1'")
+
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
     except Exception as e:
@@ -1121,19 +1129,16 @@ if __name__ == '__main__':
         # TODO reestablish
         # disabled in order to check for journald logs in /j
         # net_cleanup()
-        final = tempdir
         if args.out is not None:
             log.info("creating %s", args.out)
             subprocess.check_call("mkdir -p %s" % args.out, shell=True)
             final = shutil.move(tempdir, dargs["out"])
 
-        log.info("Results in %s", final)
         # log.info("Results in %s", final)
-        import glob
+        subprocess.call(["tail", os.path.join(final, PATH_MANAGER_FILENAME)])
+
         final = os.path.abspath(final)
-        pcaps = glob.glob(os.path.join(final, "*.pcapng"))
-        print(pcaps)
-        subprocess.call(["cat", os.path.join(final, PATH_MANAGER_FILENAME)])
+        log.info("Results in %s", final)
 
         # if args.postprocess:
         #     subprocess.call([args.postprocess, final])

@@ -32,6 +32,8 @@ let
 
   standalonePyEnv = python3.withPackages(python3PackagesFun);
 
+  mptcpnumerics = python3.pkgs.callPackage ./nix/mptcpnumerics.nix {};
+
   # wrapNeovim neovim-unwrapped
   # my_nvim = wrapNeovim neovim-unwrapped (
   #   lib.mkMerge [
@@ -51,6 +53,9 @@ in
       iperf3
       pyEnv
       haskellDaemon
+
+      #
+      mptcpnumerics
     ];
 
     # echo "${builtins.toString nvimConfig.python3Env}"
