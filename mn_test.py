@@ -98,15 +98,6 @@ SCHEDULERS = ["default", "redundant", "roundrobin", "prevenant", "ecf"]
 #     loss: str
 
 
-# @dataclass
-# class CustomTopo(StaticTopo):
-
-#     def __init__(self, name, links: Sequence[Dict], *args, **kwargs):
-#         self.name = name
-#         self.links = links
-#         super().__init__(*args, **kwargs)
-
-
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
     {'bw': 1, 'delay': "150ms", "loss": 1},
@@ -258,8 +249,14 @@ class Test(object):
                  ):
         self.name = name
         self.topo = topo
+        # tempdir = tempfile.mkdtemp()
+
+        # TODO reestablish
+        # disabled in order to check for journald logs in /j
+        # net_cleanup()
+
+        self.out = tempfile.mkdtemp()
         self.description = "Please set the description"
-        print("MATT topo %r" % self.topo)
         print("MATT topo %r" % self.topo)
 
         if mptcp:
@@ -273,8 +270,19 @@ class Test(object):
 
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
-        self._out_folder = kwargs.get("out", "out")
-        run_sysctl("net.ipv4.tcp_rmem", "{0} {0} {0}".format(4000,))
+
+        # TODO set wmem as well
+        # in bytes
+        # the minimum is SK_MEM_QUANTUM (4096), default 16*1024;
+        # limit = 4096     # the min
+        limit = 16*1024  # default
+        # limit = 64*1024 # max
+        run_sysctl("net.ipv4.tcp_wmem", "{min} {default} {max}".format(
+            min=limit,
+            default=limit,
+            max=limit
+        ))
+
         run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
 
         self.net = Mininet(
@@ -302,6 +310,10 @@ class Test(object):
         if tcp_timestamps is not None:
             run_sysctl('net.ipv4.tcp_timestamps', tcp_timestamps)
         # self.init(**kwargs)
+
+    # @property
+    # def out(self):
+    #     return self._out_folder
 
     @staticmethod
     def init_subparser(parser):
@@ -427,7 +439,7 @@ class Test(object):
     def _out(self, *args):
         """ Use it to name files"""
         suffix = '_'.join(map(str, args))
-        return os.path.join(self._out_folder, suffix)
+        return os.path.join(self.out, suffix)
 
     def tearDown(self):
         logging.info("Tearing down")
@@ -559,6 +571,7 @@ class IperfNetlink(IperfTest):
             # os.path.join(os.getcwd(), "fake_solver")
             # /home/teto/mptcp-pm/hs
             "--optimizer=./fake_solver",
+            "--out=" + self.out,
             # TODO passer le dossier temporaire
             # ""
         ]
@@ -1054,7 +1067,8 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--interactive", action="store_true",
                         help="Waiting in command line interface", default=False)
     # parser.add_argument("-l", "--loss", help="Loss rate (between 0 and 100", default=0)
-    parser.add_argument("-o", "--out", action="store", default=None, help="out folder")
+    parser.add_argument("-o", "--out", action="store",
+                        dest="out", default=None, help="out folder")
 
     # parser.add_argument("--post-process", "-pp", action="store", default=None,
     #                     help="Run a postprocess script")
@@ -1095,16 +1109,12 @@ if __name__ == '__main__':
     print("args dict")
     print(dargs)
 
-    tempdir = tempfile.mkdtemp()
-
     extraDict = {
         "net": net,
         "topo": my_topo,
     }
     dargs.update(extraDict)
     test = (available_tests.get(args.test_type))(**dargs)  # type: ignore
-    # hack
-    test._out_folder = tempdir
     logging.info("Launching test %s", args.test_type)
 
     try:
@@ -1113,9 +1123,9 @@ if __name__ == '__main__':
 
         test.runExperiments(**dargs)
 
-        final = tempdir
+        final = test.out
         import glob
-        pcaps = glob.glob(os.path.join(final, "*.pcapng"))
+        pcaps = glob.glob(os.path.join(test.out, "*.pcapng"))
         print(pcaps)
         print("mptcpanalyzer -l " + os.path.join(final, pcaps[0]) + " 'mptcp_summary -H 1'")
 
@@ -1132,15 +1142,12 @@ if __name__ == '__main__':
         if args.out is not None:
             log.info("creating %s", args.out)
             subprocess.check_call("mkdir -p %s" % args.out, shell=True)
-            final = shutil.move(tempdir, dargs["out"])
+            final = shutil.move(test.out, args.out)
 
         # log.info("Results in %s", final)
         subprocess.call(["tail", os.path.join(final, PATH_MANAGER_FILENAME)])
 
         final = os.path.abspath(final)
         log.info("Results in %s", final)
-
-        # if args.postprocess:
-        #     subprocess.call([args.postprocess, final])
 
     print("finished")
