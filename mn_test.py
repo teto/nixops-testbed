@@ -260,11 +260,17 @@ class Test(object):
         print("MATT topo %r" % self.topo)
 
         if mptcp:
+            # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
+            # run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
+
             if mptcp_path_manager is not None:
                 run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
 
             if mptcp_scheduler is not None:
                 run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
+
+            # os.system('sysctl -w net.mptcp.mptcp_debug=0')
+            # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
             run_sysctl("net.mptcp.mptcp_enabled", 1)
 
@@ -298,22 +304,12 @@ class Test(object):
 
         try:
             pass
-            # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
-            # run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
         except Exception as e:
             print("WARNING %s" % e)
-
-        # os.system('sysctl -w net.mptcp.mptcp_debug=0')
-        # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
 
         assert tcp_timestamps is None or tcp_timestamps < 5
         if tcp_timestamps is not None:
             run_sysctl('net.ipv4.tcp_timestamps', tcp_timestamps)
-        # self.init(**kwargs)
-
-    # @property
-    # def out(self):
-    #     return self._out_folder
 
     @staticmethod
     def init_subparser(parser):
