@@ -1,0 +1,9 @@
+[{
+  "srcIp": "10.0.0.1",
+  "dstIp": "3.3.3.2",
+  "srcPort": 5500,
+  "dstPort": 5201,
+  "localId": 3,
+  "remoteId": 4
+}
+]

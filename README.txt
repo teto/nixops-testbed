@@ -28,3 +28,7 @@ https://multipath-tcp.org/pmwiki.php/Users/Tools
 
 To test with the netlink pm:
 sudo ./mn_test.py --out=./out -c -t symetric -d debug iperfNetlink
+
+
+
+--capture-comment
