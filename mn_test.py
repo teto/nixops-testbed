@@ -127,8 +127,8 @@ topoAsymetric = [
 ]
 
 topoSymetric = [
-    {'bw': 1, 'delay': "20ms", "loss": 0},
-    {'bw': 1, 'delay': "20ms", "loss": 0},
+    {'bw': 100, 'delay': "20ms", "loss": 0},
+    {'bw': 100, 'delay': "20ms", "loss": 0},
 ]
 
 # jitter is for example " '5ms"
@@ -442,12 +442,11 @@ class Test(object):
             print("retcode ", proc.returncode)
             if proc.returncode is None:
                 proc.terminate()  # SIGTERM
-                proc.send_signal(signal.SIGINT)  # C-C
+                # proc.send_signal(signal.SIGINT)  # C-C
 
-            print("server retcode ", proc.returncode)
-            if proc.returncode is None:
-                proc.kill()  # SIGKILL
-            # os.system('pkill -f \'tshark\'')
+            # print("server retcode ", proc.returncode)
+            # if proc.returncode is None:
+            #     proc.kill()  # SIGKILL
 
     @abc.abstractmethod
     def runExperiments(self, net, **kwargs):
@@ -572,18 +571,11 @@ class IperfNetlink(IperfTest):
 
         cmd = [
             "mptcp-pm",
-            # server.IP(),
             # or just use fake_solver and add it to PATH
-            # os.path.join(os.getcwd(), "fake_solver")
-            # /home/teto/mptcp-pm/hs
-            "--optimizer=./fake_solver",
+            # "--optimizer=./fake_solver",
             "--out=" + self.out,
             "--filter=filtered_connections.json",
-            # TODO passer le dossier temporaire
-            # ""
         ]
-        # TODO I want to log its output
-        # self.cmdPrint("mptcp-pm")
         fd = open(self._out(PATH_MANAGER_FILENAME), "w+")
         self.start_daemon(client, cmd, shell=True, stdout=fd, stderr=subprocess.STDOUT)
         super().setup(**kwargs)
@@ -1060,6 +1052,14 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--debug", choices=['debug', 'info', 'error'],
                         help="Running in debug mode", default='info')
     # shouldn't let the user choose it, it's too dependant on the experiment
+    parser.add_argument(
+        "--optimizer", type=str, default=None,
+        help='''
+        Path to a program that will be called with:
+        - the path towards a json file containing the current statistics of the connection
+        and should return a list of clamped windows to respect
+        '''
+    )
     parser.add_argument("-t", "--topo", dest="topo_name",
                         choices=available_topologies.keys(),
                         help="Topology", default="symetric")
