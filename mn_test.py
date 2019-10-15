@@ -107,7 +107,7 @@ SCHEDULERS = ["default", "redundant", "roundrobin", "prevenant", "ecf"]
 # latency_ms	TBF latency parameter
 # enable_ecn	enable ECN (False)
 # enable_red	enable RED (False)
-# max_queue_size	queue limit parameter for netem Helper method: bool -> 'on'/'off' 
+# max_queue_size	queue limit parameter for netem Helper method: bool -> 'on'/'off'
 topoWireLessHetero = [
     # parameters taken from "how hard can it be"
     {'bw': 1, 'delay': "150ms", "loss": 1},
@@ -245,19 +245,19 @@ class Test(object):
     # name: str
     description = "default description"
 
-    def __init__(self,
-                 topo: Topo,
-                 # sysctl values
-                 mptcp=True,
-                 aggr_dupack=0, aggr_rto=0,
-                 mptcp_scheduler=None,
-                 mptcp_path_manager=None,
-                 tcp_timestamps=0,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        topo: Topo,
+        # sysctl values
+        mptcp=True,
+        aggr_dupack=0, aggr_rto=0,
+        mptcp_scheduler=None,
+        mptcp_path_manager=None,
+        tcp_timestamps=0,
+        **kwargs
+    ):
         self.name = "unnamed_test"
         self.topo = topo
-        # tempdir = tempfile.mkdtemp()
 
         # TODO reestablish
         # disabled in order to check for journald logs in /j
@@ -265,7 +265,7 @@ class Test(object):
 
         self.out = tempfile.mkdtemp()
         self.description = "Please set the description"
-        print("MATT topo %r" % self.topo)
+        log.debug("topo %r", self.topo)
 
         if mptcp:
             # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
@@ -323,25 +323,10 @@ class Test(object):
     def init_subparser(parser):
         return parser
 
-    # def start_nemphis(self, node, cmd, **kwargs):
-    #     '''
-    #     start the NEtlink MPtcp HAskell daemon
-    #     '''
-    #     # daemon $@
-    #     # cabal run daemon daemon $@
-    #     # cmd = ["mptcp-pm", "-g", "-i", "any", "-w", pcap_filename]
-    #     # cmd = ["nix-build", "./default.nix"]
-    #     # subprocess.check_call(cmd, cwd="")
-
-    #     # TODO need to remove/insert the module beforehand ?
-
-    #     self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
-
     # https://github.com/mininet/mininet/issues/857
     def start_daemon(self, node, cmd, **kwargs):
 
-        print("starting daemon...")
-        logging.info("starting: %s", cmd)
+        log.info("starting daemon: %s", cmd)
 
         # could use pexec as well ?
         proc = node.popen(cmd, **kwargs)
@@ -373,7 +358,10 @@ class Test(object):
         # https://stackoverflow.com/questions/13563523/the-capture-file-appears-to-have-been-cut-short-in-the-middle-of-a-packet-how
         pcap_filename = self._out("%s" % node, self.topo.topo_name, ".pcapng")
         # pcap_filename = "/tmp/%s_%d_%s" % (node, number_of_paths, ".pcapng")
-        cmd = ["tshark", "-g", "-i", "any", "-w", pcap_filename]
+        cmd = [
+            "tshark", "-g", "-i", "any", "-w", pcap_filename,
+            "--capture-comment", "TOTO"
+        ]
         # cmd = ["dumpcap", "-i", "any", "-w", self._out("%s" % node, number_of_paths, ".pcapng") ]
         # node.cmd(cmd)
         self.start_daemon(node, cmd, shell=True, stderr=subprocess.PIPE)
@@ -433,8 +421,8 @@ class Test(object):
         suffix = '_'.join(map(str, args))
         return os.path.join(self.out, suffix)
 
-    def tearDown(self):
-        logging.info("Tearing down")
+    def tearDown(self, **kwargs):
+        log.info("Tearing down")
 
         # restore some sysctl values ? like timestamp
         for proc in self._popens:
@@ -448,8 +436,10 @@ class Test(object):
             # if proc.returncode is None:
             #     proc.kill()  # SIGKILL
 
+        net_cleanup()
+
     @abc.abstractmethod
-    def runExperiments(self, net, **kwargs):
+    def runExperiments(self, **kwargs):
         pass
 
 
@@ -458,8 +448,6 @@ class IperfTest(Test):
     """
 
     def __init__(self, *args, **kwargs):
-        """
-        """
         super().__init__(*args, **kwargs)
         self.name = "Iperf"
         self.description = "iperf test"
@@ -476,9 +464,8 @@ class IperfTest(Test):
         super().setup(**kwargs)
 
     def tearDown(self):
-        logging.info("Tearing down")
+        # log.info("Tearing down")
 
-        # CLI(net)
         super().tearDown()
 
     # def runExperiments(self, net, **kwargs):
@@ -493,25 +480,18 @@ class IperfTest(Test):
     #     print("reinject_out=", reinject_out)
     #     # check_reinject = True
     #     with open(reinject_out, "w+") as fd:
-
     #         # print("launch check_reinject")
     #         # cmd =["/home/teto/testbed/check_opportunistic_reinject.py", "-j"],
     #             # might be a problem
     #             # stdout=fd, universal_newlines=True, bufsize=0
-
     #         # or server ?
     #         self.start_daemon(client, cmd)
     #         self.start_iperf_server(server, cmd)
-
     #         # need to generate a situation with frequent retransmissions
     #         for run in range(args.get("runs", 1)):
     #             self.run_xp(net, run, **args)
 
     def runExperiments(self, **kwargs):
-        """
-        """
-        # TODO
-        run = 0
         client = self.net.get('client')
         server = self.net.get(SERVER_NAME)
 
@@ -520,10 +500,6 @@ class IperfTest(Test):
             self.run_xp(client=client, server=server, run=run, **kwargs)
 
     def run_xp(self, client, server, run, **kwargs):
-        # in iperf3, the client sends the data so...
-        # self.start_iperf_client(client,  )
-        # client = dataAmount
-        # server = self.net.get('server')
         logfile = self._out(
             "client_iperf", "path", self.topo.topo_name, "run", run, ".log"
         )
@@ -545,7 +521,7 @@ class IperfTest(Test):
         else:
             # in seconds
             cmd.append("-t")
-            cmd.append("20")
+            cmd.append("15")
 
         client.cmdPrint(cmd)
 
@@ -572,13 +548,14 @@ class IperfNetlink(IperfTest):
         cmd = [
             "mptcp-pm",
             # or just use fake_solver and add it to PATH
-            # "--optimizer=./fake_solver",
+            "--optimizer=./fake_solver",
             "--out=" + self.out,
             "--filter=filtered_connections.json",
         ]
         fd = open(self._out(PATH_MANAGER_FILENAME), "w+")
         self.start_daemon(client, cmd, shell=True, stdout=fd, stderr=subprocess.STDOUT)
         super().setup(**kwargs)
+
 
 class IperfWithLostLinks(IperfTest):
     def __init__(self, *args, **kwargs):
@@ -589,8 +566,8 @@ class IperfWithLostLinks(IperfTest):
 
     def run_xp(self, client, server, run, **kwargs):
         # in iperf3, the client sends the data so...
-        # self.start_iperf_client(client,  )
-        # client = dataAmount
+        # TODO copy from other
+        raise Exception("Copy implementation from parent")
         cmd = "iperf3 -c {serverIP} {dataAmount} --json --logfile={logfile} {fromFile}".format(
             serverIP=server.IP(),   # seems to work "7.7.7.7"
             # dataAmount="-n " + dataAmount if FILE_TO_TRANSFER is not None else "",
@@ -1134,7 +1111,6 @@ if __name__ == '__main__':
         import glob
         pcaps = glob.glob(os.path.join(test.out, "*.pcapng"))
         print(pcaps)
-        print("mptcpanalyzer -l " + os.path.join(final, pcaps[0]) + " 'mptcp_summary -H 1'")
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
@@ -1156,5 +1132,6 @@ if __name__ == '__main__':
 
         final = os.path.abspath(final)
         log.info("Results in %s", final)
+        print("mptcpanalyzer -l " + os.path.join(final, pcaps[0]) + " 'mptcp_summary -H 1'")
 
     print("finished")
