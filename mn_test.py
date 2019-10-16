@@ -83,6 +83,13 @@ GW_NAME = 'gateway'
 
 dataAmount = "1M"
 
+# sysctl we want to drop/log
+sysctl_of_interest = [
+    "net.mptcp.mptcp_enabled",
+    "net.mptcp.mptcp_path_manager",
+    "net.ipv4.tcp_timestamps",
+]
+
 # set to none for a random stream
 FILE_TO_TRANSFER = None
 # FILE_TO_TRANSFER = "test_file"
@@ -253,7 +260,6 @@ class Test(object):
         aggr_dupack=0, aggr_rto=0,
         mptcp_scheduler=None,
         mptcp_path_manager=None,
-        tcp_timestamps=0,
         **kwargs
     ):
         self.name = "unnamed_test"
@@ -266,22 +272,6 @@ class Test(object):
         self.out = tempfile.mkdtemp()
         self.description = "Please set the description"
         log.debug("topo %r", self.topo)
-
-        if mptcp:
-            # run_sysctl("net.mptcp.mptcp_aggressive_dupack", aggr_dupack)
-            # run_sysctl('net.mptcp.mptcp_aggressive_rto', aggr_rto)
-
-            if mptcp_path_manager is not None:
-                run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
-
-            if mptcp_scheduler is not None:
-                run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
-
-            # os.system('sysctl -w net.mptcp.mptcp_debug=0')
-            # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
-
-            run_sysctl("net.mptcp.mptcp_enabled", 1)
-
         # a list of started processes one should check on error ?
         self._popens = []  # type: ignore
 
@@ -297,8 +287,6 @@ class Test(object):
             max=limit
         ))
 
-        run_sysctl("net.ipv4.tcp_no_metrics_save", 1)
-
         self.net = Mininet(
             topo=self.topo,
             link=TCLink,
@@ -306,18 +294,31 @@ class Test(object):
             cleanup=True,
             # inNamespace=False,
         )
-
         self.topo.hook(self.net)
         self.net.start()
 
-        try:
-            pass
-        except Exception as e:
-            print("WARNING %s" % e)
+        # we run the sysctl commands after starting
+        # subprocess.check_call(["sysctl", "-p", "sysctl.conf"], )
 
-        assert tcp_timestamps is None or tcp_timestamps < 5
-        if tcp_timestamps is not None:
-            run_sysctl('net.ipv4.tcp_timestamps', tcp_timestamps)
+        if mptcp:
+
+            if mptcp_path_manager is not None:
+                run_sysctl('net.mptcp.mptcp_path_manager', mptcp_path_manager)
+
+            if mptcp_scheduler is not None:
+                run_sysctl("net.mptcp.mptcp_scheduler", mptcp_scheduler)
+
+            # os.system('sysctl -w net.mptcp.mptcp_debug=0')
+            # os.system('sysctl -w net.mptcp.mptcp_enabled=1')
+
+            run_sysctl("net.mptcp.mptcp_enabled", 1)
+
+        # this seems to work
+        cmd = ["sysctl", "-p", "sysctl.conf"]
+        for host in self.net.hosts:
+
+            host.cmdPrint(cmd)
+# subprocess.check_call(["sysctl", "-p", "sysctl.conf"], )
 
     @staticmethod
     def init_subparser(parser):
@@ -369,10 +370,11 @@ class Test(object):
     def start_iperf_server(self, node, **kwargs):
         # iperf 3 version
         # "Normally, the test data is sent from the client to the server,"
-        print("name = %r" % self.name)
-        cmd = ["iperf3", "-s", "--json", "--logfile={logfile}".format(
-            logfile=self._out("server_iperf", self.name, ".log")
-        )]
+        logfile = self._out("server_iperf", self.name, ".log")
+        cmd = [
+            "iperf3", "-s", "--json",
+            f"--logfile={logfile}"
+        ]
 
         # just as a security
         node.cmdPrint("pkill -9 iperf")
@@ -385,7 +387,7 @@ class Test(object):
         # -i 7.7.7.7
         # -s => some text in syslog
         # -R <dir> set document root to DIR
-        print("startwebfs")
+        log.info("startwebfs")
         cmd = "webfsd -s -R /home/teto/testbed -d"
         self.start_daemon(node, cmd)
 
@@ -451,6 +453,7 @@ class IperfTest(Test):
         super().__init__(*args, **kwargs)
         self.name = "Iperf"
         self.description = "iperf test"
+        self.duration = 5
 
     def setup(self, **kwargs):
         net = self.net
@@ -521,7 +524,7 @@ class IperfTest(Test):
         else:
             # in seconds
             cmd.append("-t")
-            cmd.append("15")
+            cmd.append(self.duration)
 
         client.cmdPrint(cmd)
 
@@ -669,11 +672,9 @@ class DackTest(Test):
     def setup(self, **kwargs):
         logging.info("setup network")
         server = net.get('server')
-        gateway = net.get('gateway')
+        # gateway = net.get('gateway')
 
         self.start_webfs(server)
-
-        # run_sysctl("net.ipv4.tcp_reordering", 3)
 
         super().setup(**kwargs)
 
@@ -790,8 +791,8 @@ class StaticTopo(Topo):
         # If you need per-host private directories,
         # you can specify them as options to Host, for example:
         # h = Host( 'h1', privateDirs=[ '/some/directory' ] )
-        client = self.addHost('client')
-        server = self.addHost('server')
+        client = self.addHost('client', cls=MptcpHost)
+        server = self.addHost('server', cls=MptcpHost)
         gateway = self.addHost('gateway', cls=LinuxRouter,)
 
         # everything should go through this switch
@@ -1000,13 +1001,25 @@ class MptcpHost(mininet.net.Host):
     mounts debugfs so that bcc works
     """
 
-    def __init__(self, name, **kwargs):
-        '''
-        '''
+    # def __init__(self, name, **kwargs):
+    #     '''
+    #     '''
+    def config(self, **params):
+        super(MptcpHost, self).config(**params)
+        # Enable forwarding on the router
+        # self.cmdPrint('sysctl net.ipv4.ip_forward=1')
+        self.cmdPrint('sysctl net.ipv4.conf.all.rp_filter=0')
 
-        super(MptcpHost, self).__init__(name, **kwargs)
-        res = self.cmd("mount -t debugfs none /sys/kernel/debug")
-        res = self.cmd("mount -t bpf none /sys/fs/bpf/")
+        # super(MptcpHost, self).__init__(name, **kwargs)
+        res = self.cmdPrint("mount -t debugfs none /sys/kernel/debug")
+        res = self.cmdPrint("mount -t bpf none /sys/fs/bpf/")
+        # self.cmdPrint()
+        # subprocess.check_call(["sysctl", "-p", "sysctl.conf"], )
+        # self.log_config()
+
+    def log_config(self):
+        for name in sysctl_of_interest:
+            os.system(f"sysctl {name}")
 
     # def runMptcpHookOnEveryInterface(self, hook_filename, ):
     #     '''
@@ -1018,7 +1031,6 @@ class MptcpHost(mininet.net.Host):
 
 if __name__ == '__main__':
 
-    #
     print("To clean run `mn -c`")
     print("You might want to run `nix-serve  -p 8080`")
     print("sudo insmod /home/teto/mptcp/build/net/mptcp/mptcp_prevenant.ko")
@@ -1104,18 +1116,17 @@ if __name__ == '__main__':
     try:
 
         test.setup(**dargs)
+        # test.log_config()
 
         test.runExperiments(**dargs)
 
         final = test.out
-        import glob
-        pcaps = glob.glob(os.path.join(test.out, "*.pcapng"))
-        print(pcaps)
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
     except Exception as e:
         logging.exception("Exception triggered ")
+        sys.exit(1)
     finally:
         test.tearDown()  # type: ignore
 
@@ -1127,10 +1138,14 @@ if __name__ == '__main__':
             subprocess.check_call("mkdir -p %s" % args.out, shell=True)
             final = shutil.move(test.out, args.out)
 
+        import glob
+
         # log.info("Results in %s", final)
+        final = os.path.abspath(final)
+        pcaps = glob.glob(os.path.join(final, "*.pcapng"))
+        print(pcaps)
         subprocess.call(["tail", os.path.join(final, PATH_MANAGER_FILENAME)])
 
-        final = os.path.abspath(final)
         log.info("Results in %s", final)
         print("mptcpanalyzer -l " + os.path.join(final, pcaps[0]) + " 'mptcp_summary -H 1'")
 

@@ -128,6 +128,7 @@ let
     # netperf
     # tshark
     home-manager
+    hping
     nettools # for netstat
     tcpdump
     traceroute
