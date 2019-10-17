@@ -554,8 +554,8 @@ class IperfNetlink(IperfTest):
             "mptcp-pm",
             # or just use fake_solver and add it to PATH
             # TODO pass mptcpnumerics
-            # "--optimizer=./mptcpnumerics_wrapper",
-            "--optimizer=./fake_solver",
+            "--optimizer=./mptcpnumerics_wrapper.sh",
+            # "--optimizer=./fake_solver",
             "--out=" + self.out,
             "--filter=filtered_connections.json",
         ]

@@ -5,4 +5,5 @@
 mptcpnumerics "optcwnd --json=toto.csv"
 
 # https://stackoverflow.com/questions/8522851/concise-and-portable-join-on-the-unix-command-line
-cat toto.json | jq '.subflow_vars[].cwnd' |paste -s -d","
+res=$(cat toto.json | jq '.subflow_vars[].cwnd' |paste -s -d",")
+echo "[$res]"
