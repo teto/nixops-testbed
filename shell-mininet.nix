@@ -50,12 +50,13 @@ in
     propagatedBuildInputs = let
         pyEnv = (if host == true then nvimPyEnv else standalonePyEnv);
       in [
-      iperf3
+      iperf3  # for the mininet tests
       pyEnv
       haskellDaemon
 
-      #
+      jq  # to postprocess mptcpnumerics json
       mptcpnumerics
+      cbc  # a solver for mptcpnumerics
     ];
 
     # echo "${builtins.toString nvimConfig.python3Env}"

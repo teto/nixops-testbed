@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# TODO pass commands to
+# TODO should return constraints as json ?
+# pass $0 etc
+mptcpnumerics "optcwnd --json=toto.csv"
+
+# https://stackoverflow.com/questions/8522851/concise-and-portable-join-on-the-unix-command-line
+cat toto.json | jq '.subflow_vars[].cwnd' |paste -s -d","
