@@ -1,12 +1,9 @@
-# { multihomed ? false , ... }:
-# 
-# mount -o remount,rw /nix/store
-# chown -R root:root /nix/store
 let
   tpl = { config, pkgs, lib,  ... }:
   let
-    myKernel = pkgs.linux_mptcp_trunk_raw;
+    # myKernel = pkgs.linux_mptcp_trunk_raw;
     # myKernel = pkgs.linux_mptcp;
+    myKernel = pkgs.linux_mptcp_guest-dev;
     dotfiles = /home/teto/dotfiles;
     myOverlay = dotfiles + /config/nixpkgs/overlays/kernels.nix;
   in
@@ -44,6 +41,16 @@ let
     # after first deploy
     ln -s /dev/vda1 /dev/root
   '';
+
+  # boot.kernelPatches = [
+  #   ({
+  #     name = "matt_test";
+  #     extraStructuredConfig = with lib.kernel; {
+  #       DRM_VIRTIO_GPU= no;
+  #     };
+  #   })
+  # ];
+
 
 
   # might be necessary to deal with some options
@@ -116,7 +123,7 @@ let
   # WARNING: pick a kernel along the same version as tc ?
   # linux
   # boot.kernelPackages = pkgs.linuxPackages_mptcp;
-  boot.kernelPackages = pkgs.linuxPackagesFor pkgs.linux_mptcp_guest;
+  boot.kernelPackages = pkgs.linuxPackagesFor myKernel;
   # boot.blacklistedKernelModules = ["nouveau"];
 
   environment.systemPackages = with pkgs; [

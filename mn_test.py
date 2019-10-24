@@ -455,7 +455,7 @@ class IperfTest(Test):
         super().__init__(*args, **kwargs)
         self.name = "Iperf"
         self.description = "iperf test"
-        self.duration = 5
+        self.duration = 20
 
     def setup(self, **kwargs):
         net = self.net
@@ -554,7 +554,7 @@ class IperfNetlink(IperfTest):
             "mptcp-pm",
             # or just use fake_solver and add it to PATH
             # TODO pass mptcpnumerics
-            "--optimizer=./mptcpnumerics_wrapper.sh",
+            # "--optimizer=./mptcpnumerics_wrapper.sh",
             # "--optimizer=./fake_solver",
             "--out=" + self.out,
             "--filter=filtered_connections.json",
