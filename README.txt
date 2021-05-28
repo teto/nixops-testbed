@@ -1,18 +1,9 @@
 
-
-# generate ebpf bytecode
-
-$ nix-shell -A ebpfdropper ~/nixpkgs
-$ clang -O2 -emit-llvm -c ebpf_dropper.c -o - | llc -march=bpf -filetype=obj -o ebpf_dropper.o && ./attach_tc.sh eth0
-
-# generate the file to be dropped
-
-$ ./gen-file
-
-will create a file that appends DROPME at its end
-
-
-
+1. Enable libvirtd on your system
+2. Run `nix develop`
+3. Create your VMs if they dont exist already:
+`nixops create ./mptcp-local-logical.nix ./mptcp-local-physical.nix`
+`nixops deploy --debug`
 
 
 

@@ -4,12 +4,12 @@
 let
   tpl = { config, pkgs, lib,  ... }:
   let
-    ip = "${pkgs.iproute}/bin/ip";
+    # ip = "${pkgs.iproute}/bin/ip";
     logger = "${pkgs.utillinux}/bin/logger";
-    
+
     # networkmanager hooks
-    mptcpUp =   /home/teto/dotfiles/nixpkgs/hooks/mptcp_up_raw;
-    mptcpDown =  /home/teto/dotfiles/nixpkgs/hooks/mptcp_down_raw;
+    # mptcpUp =   /home/teto/dotfiles/nixpkgs/hooks/mptcp_up_raw;
+    # mptcpDown =  /home/teto/dotfiles/nixpkgs/hooks/mptcp_down_raw;
 
     ifCheck= ''
       if [ "$DEVICE_IFACE" = lo ]; then
@@ -55,22 +55,20 @@ let
       tc qdisc del dev "$DEVICE_IFACE" root netem
     '';
 
-    myOverlay = /home/teto/dotfiles/nixpkgs/overlays/kernels.nix;
   in
   ({
     # prints everything superior to this number
 
     imports = [
       #  Not needed if we use the libvirt kernel interface
-        # /home/teto/dotfiles/config/nixpkgs/overlays/kernels.nix
-        /home/teto/dotfiles/nixpkgs/modules/mptcp.nix
-        /home/teto/dotfiles/nixpkgs/mptcp-unstable.nix
-        /home/teto/dotfiles/nixpkgs/config-all.nix
-        /home/teto/dotfiles/nixpkgs/common-server.nix
-        /home/teto/dotfiles/nixpkgs/modules/wireshark.nix
+        # /home/teto/dotfiles/nixpkgs/config-all.nix
+
         # for now don't use it
         # /home/teto/dotfiles/nixpkgs/modules/network-manager.nix
       ];
+
+  programs.wireshark.enable = true; # installs setuid
+  programs.wireshark.package = pkgs.tshark; # which one
 
       # moved it
   # system.activationScripts.createDevRoot = ''
@@ -95,23 +93,21 @@ let
 
     # TODO reestablish with the correct nixpkgs !
     dispatcherScripts = [
-      {
-        source = mptcpUp;
-        # type = "up";
-      }
+      # {
+      #   source = mptcpUp;
+      #   # type = "up";
+      # }
+
       # netem-based hooks
-      {
-        source = addDelay;
-      }
+      # {
+      #   source = addDelay;
+      # }
     ];
   };
 
     # TODO test with
     networking.mptcp.enable = true;
     # networking.iproute2.enable = true;
-
-    nixpkgs.overlays = lib.optionals (builtins.pathExists myOverlay)  [ (import myOverlay) ]
-    ;
 
     # TODO run commands on boot
 
@@ -139,6 +135,7 @@ let
       netperf
       ncdu
       tshark
+      host.dnsutils
     ];
 
     # TODO here we can set a custom initramfs/kernel
@@ -147,7 +144,7 @@ let
     # virsh + ttyconsole pour voir le numero
     # TODO maybe add users
 
-  } 
+  }
   );
 
 
@@ -175,10 +172,9 @@ rec {
   # server = tpl ;
   # <custom/>
   # server = import /home/teto/dotfiles/nixpkgs/config-iij-mptcp.nix;
-  # 
-  server = {  config, pkgs, lib,  ... } @ args: 
+  server = {  config, pkgs, lib,  ... } @ args:
     tpl args // {
-      # TODO configure for 
+      # TODO configure for
       # now that we have qemu-agent it should be possible to use static ip addresses too
       # networking.interfaces = {
       #   ipv4.addresses = [ { address = "10.0.0.1"; prefixLength = 16; } { address = "192.168.1.1"; prefixLength = 24; } ]
