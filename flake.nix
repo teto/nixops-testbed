@@ -6,8 +6,13 @@
     mptcp.url = "github:teto/mptcp-flake";
     # perso.url = "github:teto/home";
     utils.url = "github:numtide/flake-utils";
-    nixops-libvirtd.url = "github:teto/nixops-libvirtd/flake";
+    # nixops-libvirtd.url = "github:teto/nixops-libvirtd/flake";
+
+    # use as a backup solution until nixops gets its shit together
+    nixops-plugged = "github:lukebfox/nixops-plugged";
+    iohk-nixops = "github:input-output-hk/nixops-flake";
   };
+# nix build --impure --expr '(builtins.getFlake "github:input-output-hk/nixops-flake")''.impure.${builtins.currentSystem}.nixops_2_0-latest-unstable [ "virtd" ]'
 
   outputs = inputs@{ self, mptcp, nixpkgs, nixops, utils, ... }: let
   in utils.lib.eachSystem ["x86_64-linux"] (system: let
@@ -19,15 +24,21 @@
         };
   in {
 
-    # packages."${system}".hello = nixpkgs.legacyPackages.x86_64-linux.hello;
-
-    defaultPackage = inputs.nixops-libvirtd.defaultPackage."${system}";
+    # nixops.withPlugins (ps: [ps.nixops-libvirtd]);
+    defaultPackage = nixops.defaultPackage."${system}".withPlugins(ps: [
+      ps.nixops-libvirtd
+    ]);
+    # nixops-libvirtd.defaultPackage."${system}";
+    # defaultPackage = inputs.nixops-libvirtd.defaultPackage."${system}";
     # defaultPackage = pkgs.mkShell {
     #   name = "testbed";
     #   buildInputs = [
     #     inputs.nixops.defaultPackage."${system}"
     #   ];
     # };
+
+    devShell = inputs.iohk-nixops.impure."${system}".nixops_2_0-latest-unstable [ "virtd" ];
+
   }) // {
 
     nixosConfigurations = {

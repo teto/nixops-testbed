@@ -16,7 +16,7 @@
 # ++ [ "debug=0x05" ]
     in 
     {
-    deployment.targetEnv = "libvirtd";
+    deployment.targetEnv = "virtd";
     deployment.libvirtd = {
       baseImageSize = 14; # GB
       memorySize = 2048; # MB
