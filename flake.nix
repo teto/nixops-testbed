@@ -9,8 +9,8 @@
     # nixops-libvirtd.url = "github:teto/nixops-libvirtd/flake";
 
     # use as a backup solution until nixops gets its shit together
-    nixops-plugged = "github:lukebfox/nixops-plugged";
-    iohk-nixops = "github:input-output-hk/nixops-flake";
+    # nixops-plugged.url = "github:lukebfox/nixops-plugged";
+    iohk-nixops.url = "github:input-output-hk/nixops-flake";
   };
 # nix build --impure --expr '(builtins.getFlake "github:input-output-hk/nixops-flake")''.impure.${builtins.currentSystem}.nixops_2_0-latest-unstable [ "virtd" ]'
 
@@ -37,7 +37,12 @@
     #   ];
     # };
 
-    devShell = inputs.iohk-nixops.impure."${system}".nixops_2_0-latest-unstable [ "virtd" ];
+    devShell = pkgs.mkShell {
+      name = "devshell";
+      buildInputs = [
+        inputs.iohk-nixops.packages."${system}".nixops_2_0-latest-unstable
+      ];
+    };
 
   }) // {
 

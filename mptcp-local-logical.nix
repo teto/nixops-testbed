@@ -4,12 +4,7 @@
 let
   tpl = { config, pkgs, lib,  ... }:
   let
-    # ip = "${pkgs.iproute}/bin/ip";
     logger = "${pkgs.utillinux}/bin/logger";
-
-    # networkmanager hooks
-    # mptcpUp =   /home/teto/dotfiles/nixpkgs/hooks/mptcp_up_raw;
-    # mptcpDown =  /home/teto/dotfiles/nixpkgs/hooks/mptcp_down_raw;
 
     ifCheck= ''
       if [ "$DEVICE_IFACE" = lo ]; then
@@ -32,7 +27,6 @@ let
 
       logger "adding delay"
       set -x
-
 
       # remove it just in case it already exists
       tc qdisc del dev "$DEVICE_IFACE" root netem
@@ -118,8 +112,8 @@ let
     networking.firewall.enable = false;
 
     # just trying
-    networking.dnsExtensionMechanism = false;
-    networking.dnsSingleRequest = false;
+    networking.resolvconf.dnsExtensionMechanism = false;
+    networking.resolvconf.dnsSingleRequest = false;
 
 
     boot.postBootCommands = ''
