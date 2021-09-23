@@ -20,13 +20,7 @@ let
         <on_crash>preserve</on_crash>
       '';
 
-        inherit networks; 
-
-        # CAREFUL ADD -c qemu:///system
-  # virsh pool-create-as default dir --target /var/lib/libvirt/images
-  # virsh pool-dumpxml default > pool.xml
-  # virsh -c qemu:///system pool-define pool.xml 
-  # virsh -c qemu:///system pool-autostart default
+        inherit networks;
 
       # to see the botting message on the line
       # some of it could be passed as 
@@ -35,9 +29,9 @@ let
       # nokaslr needed for qemu debugging
       # cmdline=" earlycon=ttyS0 console=ttyS0 boot.debug=1";
       # when the module (e.g., tcp_probe) is builtin, we have to pass modules 
-      cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 boot.consoleLogLevel=1 nokaslr tcp_probe.port=5201 tcp_probe.full=1";
+      # cmdline="root=/dev/sda1 earlycon=ttyS0 console=ttyS0 init=/nix/var/nix/profiles/system/init boot.debug=1 boot.consoleLogLevel=1 nokaslr tcp_probe.port=5201 tcp_probe.full=1";
       # # x86_64 is a symlink towards x86
-      kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
+      # kernel="/home/teto/mptcp/build/arch/x86_64/boot/bzImage";
   };
 
   # lib.recursiveUpdate { } {deployment.libvirtd}
