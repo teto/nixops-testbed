@@ -25,7 +25,7 @@
         };
   in {
 
-    defaultPackage = nixops.defaultPackage."${system}".withPlugins(ps: [
+    defaultPackage = nixops.defaultPackage.${system}.withPlugins(ps: [
       ps.nixops-libvirtd
     ]);
     # defaultPackage = pkgs.mkShell {
